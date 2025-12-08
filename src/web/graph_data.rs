@@ -157,15 +157,3 @@ impl fmt::Display for GraphDisplayData {
         writeln!(f, "}}")
     }
 }
-
-impl fmt::Display for &mut GraphDisplayData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "GraphDisplayData {{")?;
-        writeln!(f, "\tlabels: {:#?}", self.labels)?;
-        writeln!(f, "\telements: {:#?}", self.elements)?;
-        writeln!(f, "\tedges: {:#?}", self.edges)?;
-        writeln!(f, "\tcardinalities: {:#?}", self.cardinalities)?;
-        writeln!(f, "\tcharacteristics: {:#?}", self.characteristics)?;
-        writeln!(f, "}}")
-    }
-}
