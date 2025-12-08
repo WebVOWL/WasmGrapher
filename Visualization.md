@@ -1,4 +1,18 @@
-# Range mappings
+# Characteristics
+
+[!NOTE]
+
+> Non-exhaustive
+
+-   Transitive
+-   FunctionalProperty
+-   InverseFunctionalProperty
+-   Reflexive
+-   Irreflexive
+-   Symmetric
+-   Asymmetric
+
+# Elements (nodes and edges)
 
 This document details the conversion of element enums to number codes for all visualized types.
 
