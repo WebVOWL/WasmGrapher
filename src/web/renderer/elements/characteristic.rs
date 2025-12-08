@@ -2,10 +2,6 @@ pub enum Characteristic {
     Transitive,
     FunctionalProperty,
     InverseFunctionalProperty,
-    // Deprecated,
-    // Equivalent,
-    // Union,
-    // Anonymous
 }
 
 impl std::fmt::Display for Characteristic {
