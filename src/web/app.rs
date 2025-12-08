@@ -145,7 +145,7 @@ impl ApplicationHandler<State> for App {
                     if let Some(proxy) = &self.proxy {
                         let proxy = proxy.clone();
                         let window = state.window.clone();
-                        let graph = InitGraph::demo();
+                        let graph = GraphDisplayData::demo();
 
                         wasm_bindgen_futures::spawn_local(async move {
                             let _ = proxy.send_event(
