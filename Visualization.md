@@ -11,6 +11,7 @@
 -   Irreflexive
 -   Symmetric
 -   Asymmetric
+-   HasKey
 
 # Elements (nodes and edges)
 
