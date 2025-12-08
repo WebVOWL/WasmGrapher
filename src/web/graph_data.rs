@@ -1,6 +1,7 @@
 pub use crate::web::renderer::elements::{element_type::ElementType, owl::*, rdf::*, rdfs::*};
 use rkyv::{Archive, Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Display;
 
 /// Struct containing graph data for WasmGrapher
 #[repr(C)]
