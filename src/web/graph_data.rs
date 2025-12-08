@@ -1,7 +1,7 @@
 pub use crate::web::renderer::elements::{element_type::ElementType, owl::*, rdf::*, rdfs::*};
 use rkyv::{Archive, Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt::Display;
+use std::fmt;
 
 /// Struct containing graph data for WasmGrapher
 #[repr(C)]
@@ -146,7 +146,19 @@ impl Default for GraphDisplayData {
     }
 }
 
-impl Display for GraphDisplayData {
+impl fmt::Display for GraphDisplayData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "GraphDisplayData {{")?;
+        writeln!(f, "\tlabels: {:#?}", self.labels)?;
+        writeln!(f, "\telements: {:#?}", self.elements)?;
+        writeln!(f, "\tedges: {:#?}", self.edges)?;
+        writeln!(f, "\tcardinalities: {:#?}", self.cardinalities)?;
+        writeln!(f, "\tcharacteristics: {:#?}", self.characteristics)?;
+        writeln!(f, "}}")
+    }
+}
+
+impl fmt::Display for &mut GraphDisplayData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "GraphDisplayData {{")?;
         writeln!(f, "\tlabels: {:#?}", self.labels)?;
