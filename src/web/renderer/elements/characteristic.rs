@@ -2,6 +2,7 @@ pub enum Characteristic {
     Transitive,
     FunctionalProperty,
     InverseFunctionalProperty,
+    HasKey,
 }
 
 impl std::fmt::Display for Characteristic {
@@ -10,6 +11,7 @@ impl std::fmt::Display for Characteristic {
             Characteristic::Transitive => write!(f, "transitive"),
             Characteristic::FunctionalProperty => write!(f, "functional"),
             Characteristic::InverseFunctionalProperty => write!(f, "inverse functional"),
+            Characteristic::HasKey => write!(f, "key"),
         }
     }
 }
