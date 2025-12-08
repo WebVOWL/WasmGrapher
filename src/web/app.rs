@@ -9,7 +9,7 @@ use winit::{
     application::ApplicationHandler,
     event::*,
     event_loop::{ActiveEventLoop, EventLoop},
-    keyboard::{KeyCode, PhysicalKey},
+    keyboard::PhysicalKey,
     window::Window,
 };
 
@@ -56,12 +56,13 @@ impl ApplicationHandler<State> for App {
 
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
-        let graph = GraphDisplayData::demo();
+        let graph = GraphDisplayData::demo(); // TODO: load default ontology (maybe FOAF)
 
         #[cfg(target_arch = "wasm32")]
         {
-            if let Some(proxy) = &self.proxy {
-                let proxy = proxy.clone();
+            // Run the future asynchronously and use the
+            // proxy to send the results to the event loop
+            if let Some(proxy) = self.proxy.take() {
                 wasm_bindgen_futures::spawn_local(async move {
                     assert!(
                         proxy
@@ -138,27 +139,7 @@ impl ApplicationHandler<State> for App {
                         ..
                     },
                 ..
-            } => {
-                // Reset to demo graph when 'r' is pressed
-                if code == KeyCode::KeyR && key_state.is_pressed() {
-                    #[cfg(target_arch = "wasm32")]
-                    if let Some(proxy) = &self.proxy {
-                        let proxy = proxy.clone();
-                        let window = state.window.clone();
-                        let graph = GraphDisplayData::demo();
-
-                        wasm_bindgen_futures::spawn_local(async move {
-                            let _ = proxy.send_event(
-                                State::new(window, graph)
-                                    .await
-                                    .expect("Unable to recreate canvas"),
-                            );
-                        });
-                    }
-                }
-
-                state.handle_key(event_loop, code, key_state.is_pressed())
-            }
+            } => state.handle_key(event_loop, code, key_state.is_pressed()),
             WindowEvent::MouseInput {
                 button,
                 state: button_state,
