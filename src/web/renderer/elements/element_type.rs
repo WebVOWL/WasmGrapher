@@ -73,7 +73,7 @@ impl From<ElementType> for u64 {
 }
 
 impl From<ElementType> for u32 {
-    #[doc =  include_str!("../../../../ELEMENT_RANGES.md")]
+    #[doc =  include_str!("../../../../Visualization.md")]
     fn from(value: ElementType) -> Self {
         match value {
             ElementType::NoDraw => 0,

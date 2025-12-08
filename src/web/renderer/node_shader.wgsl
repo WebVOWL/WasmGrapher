@@ -788,7 +788,7 @@ fn draw_disjoint_with(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32
 }
 
 fn draw_node_by_type(element_type: u32, v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32) -> vec4<f32> {
-    // Documentation is available in ELEMENT_RANGES.md
+    // Documentation is available in Visualization.md
     switch element_type {
             // Reserved
             case 0: {return vec4<f32>(0.0);}
