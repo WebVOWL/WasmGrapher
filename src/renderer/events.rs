@@ -5,7 +5,7 @@ use crate::graph_data::GraphDisplayData;
 use super::ElementType;
 
 /// Describes an event received by a render [`State`].
-#[derive(Clone, PartialEq)]
+#[derive(PartialEq)]
 pub enum RenderEvent {
     /// Hide an [`ElementType`] during rendering.
     ElementFiltered(ElementType),
@@ -23,9 +23,9 @@ pub enum RenderEvent {
     /// Negative values zoom out, positive zoom in.
     Zoomed(f64),
 
-    // Zoom to show all nodes
+    /// Zoom to show all nodes
     CenterGraph,
 
-    // Loads a new graph from input
+    /// Loads a new graph from input
     LoadGraph(GraphDisplayData),
 }

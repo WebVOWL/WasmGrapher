@@ -32,7 +32,7 @@ use crate::{
 use glam::Vec2;
 use rayon::prelude::*;
 use specs::{
-    Builder, Dispatcher, DispatcherBuilder, Join, LazyUpdate, ParJoin, ReadStorage, ReaderId,
+    Builder, Dispatcher, DispatcherBuilder, Entities, Join, LazyUpdate, ParJoin, Read, ReadStorage,
     System, World, WorldExt, Write, WriteStorage,
 };
 use std::collections::HashMap;
@@ -83,8 +83,6 @@ type EventSystemData<'a> = (
 pub struct Simulator<'a, 'b> {
     pub world: World,
     dispatcher: Dispatcher<'a, 'b>,
-    /// Event channel reader ID
-    reader_id: ReaderId<SimulatorEvent>,
 }
 
 impl<'a, 'b> Simulator<'a, 'b> {
@@ -94,11 +92,11 @@ impl<'a, 'b> Simulator<'a, 'b> {
 
     pub fn tick(&mut self) {
         self.dispatcher.dispatch(&self.world);
-        Self::handle_simulator_event(&self.world, &mut self.reader_id);
+        Self::handle_simulator_event(&self.world);
         self.world.maintain();
     }
 
-    fn handle_simulator_event(world: &World, reader_id: &mut ReaderId<SimulatorEvent>) {
+    fn handle_simulator_event(world: &World) {
         let event_data: EventSystemData = world.system_data();
         let (
             mut repel_force,
@@ -112,21 +110,21 @@ impl<'a, 'b> Simulator<'a, 'b> {
         ) = event_data;
 
         let mut event_received = false;
-        for event in EVENT_DISPATCHER.sim_chan.read().unwrap().read(reader_id) {
+        for event in EVENT_DISPATCHER.sim_read_chan.drain() {
             event_received = true;
             match event {
-                SimulatorEvent::RepelForceUpdated(value) => repel_force.0 = *value,
-                SimulatorEvent::SpringStiffnessUpdated(value) => spring_stiffness.0 = *value,
-                SimulatorEvent::SpringNeutralLengthUpdated(value) => spring_length.0 = *value,
-                SimulatorEvent::GravityForceUpdated(value) => gravity_force.0 = *value,
-                SimulatorEvent::DeltaTimeUpdated(value) => deltatime.0 = *value,
-                SimulatorEvent::DampingUpdated(value) => damping.0 = *value,
-                SimulatorEvent::QuadTreeThetaUpdated(value) => quadtree_theta.0 = *value,
-                SimulatorEvent::FreezeThresholdUpdated(value) => freeze_threshold.0 = *value,
+                SimulatorEvent::RepelForceUpdated(value) => repel_force.0 = value,
+                SimulatorEvent::SpringStiffnessUpdated(value) => spring_stiffness.0 = value,
+                SimulatorEvent::SpringNeutralLengthUpdated(value) => spring_length.0 = value,
+                SimulatorEvent::GravityForceUpdated(value) => gravity_force.0 = value,
+                SimulatorEvent::DeltaTimeUpdated(value) => deltatime.0 = value,
+                SimulatorEvent::DampingUpdated(value) => damping.0 = value,
+                SimulatorEvent::QuadTreeThetaUpdated(value) => quadtree_theta.0 = value,
+                SimulatorEvent::FreezeThresholdUpdated(value) => freeze_threshold.0 = value,
                 SimulatorEvent::DragStart(cursor_pos) => {
                     {
                         let mut cursor_position = world.fetch_mut::<CursorPosition>();
-                        cursor_position.0 = *cursor_pos;
+                        cursor_position.0 = cursor_pos;
                     }
                     {
                         // Reset intersection to -1 before checking
@@ -149,8 +147,7 @@ impl<'a, 'b> Simulator<'a, 'b> {
                 SimulatorEvent::Dragged(cursor_pos) => {
                     {
                         let mut cursor_position = world.fetch_mut::<CursorPosition>();
-                        cursor_position.0 = *cursor_pos;
-                        // info!("(EM) CP: {0}", cursor_pos)
+                        cursor_position.0 = cursor_pos;
                     }
                     {
                         let dragging_data: DraggingSystemData = world.system_data();
@@ -300,12 +297,7 @@ impl SimulatorBuilder {
         Self::create_entities(&mut world, nodes, edges, sizes);
         self.add_ressources(&mut world);
 
-        let reader_id = EVENT_DISPATCHER.sim_chan.write().unwrap().register_reader();
-        Simulator {
-            world,
-            dispatcher,
-            reader_id,
-        }
+        Simulator { world, dispatcher }
     }
 
     fn add_ressources(self: Self, world: &mut World) {

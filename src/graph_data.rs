@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 /// Struct containing graph data for WasmGrapher
 #[repr(C)]
-#[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
+#[derive(Archive, Deserialize, Serialize, PartialEq)]
 pub struct GraphDisplayData {
     /// Labels annotate classes and properties
     ///

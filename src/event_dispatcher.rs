@@ -1,22 +1,25 @@
-use crate::renderer::events::RenderEvent;
-use crate::simulator::ressources::events::SimulatorEvent;
-use specs::shrev::EventChannel;
-use std::sync::{Arc, RwLock};
+use crate::{prelude::SimulatorEvent, renderer::events::RenderEvent};
+use flume::{Receiver, Sender};
 
 pub struct EventDispatcher {
-    pub sim_chan: Arc<RwLock<EventChannel<SimulatorEvent>>>,
-    pub rend_chan: Arc<RwLock<EventChannel<RenderEvent>>>,
+    /// Receiver must only be consumed by the simulator
+    pub sim_read_chan: Receiver<SimulatorEvent>,
+    pub sim_write_chan: Sender<SimulatorEvent>,
+    /// Receiver must only be consumed by the renderer
+    pub rend_read_chan: Receiver<RenderEvent>,
+    pub rend_write_chan: Sender<RenderEvent>,
 }
 
 impl EventDispatcher {
     pub fn new() -> Self {
-        let chan1 = EventChannel::<SimulatorEvent>::new();
-        let chan2 = EventChannel::<RenderEvent>::new();
-        let lock1 = RwLock::new(chan1);
-        let lock2 = RwLock::new(chan2);
+        let (ssc, src) = flume::unbounded();
+        let (rsc, rrc) = flume::unbounded();
+
         Self {
-            sim_chan: Arc::new(lock1),
-            rend_chan: Arc::new(lock2),
+            sim_read_chan: src,
+            sim_write_chan: ssc,
+            rend_read_chan: rrc,
+            rend_write_chan: rsc,
         }
     }
 }
