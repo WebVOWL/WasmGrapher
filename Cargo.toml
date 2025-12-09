@@ -23,6 +23,9 @@
 [lib]
     crate-type=["cdylib", "rlib"]
 
+[workspace]
+    members=["grapher-bin"]
+
 [dependencies]
     anyhow="1.0.0"
     bytemuck={version="1.16.0", features=["derive"]}
@@ -42,6 +45,12 @@
     ]}
     winit="0.30.0"
 
+    [dependencies.specs]
+        default-features=false
+        features=["derive", "parallel", "stdweb"]
+        git="https://github.com/WebVOWL/specs"
+        version="0.20.1"
+
 [target.'cfg(target_arch = "x86_64")'.dependencies]
     pollster="0.4.0"
     rand="0.8.5"
@@ -56,11 +65,8 @@
         # https://docs.rs/web-sys/latest/web_sys/#modules
         features=["Document", "Element", "Window"]
 
-    [dependencies.specs]
-        default-features=false
-        features=["derive", "parallel", "stdweb"]
-        git="https://github.com/WebVOWL/specs"
-        version="0.20.1"
+[dev-dependencies]
+    grapher-bin={path="grapher-bin"}
 
 [features]
     default=["web", "static"]
