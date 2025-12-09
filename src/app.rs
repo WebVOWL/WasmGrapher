@@ -1,6 +1,6 @@
-use crate::renderer::init_graph::InitGraph;
-
 use super::renderer::State;
+use crate::graph_data::GraphDisplayData;
+use crate::prelude::ElementType;
 
 use std::sync::Arc;
 
@@ -57,13 +57,7 @@ impl ApplicationHandler<State> for App {
 
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
-        let graph = InitGraph::demo();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            // If we are not on web we can use pollster to await the state
-            self.state = Some(pollster::block_on(State::new(window, graph)).unwrap());
-        }
+        let graph = GraphDisplayData::demo();
 
         #[cfg(target_arch = "wasm32")]
         {

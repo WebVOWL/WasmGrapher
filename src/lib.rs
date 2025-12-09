@@ -3,6 +3,7 @@
 
 mod app;
 mod event_dispatcher;
+mod graph_data;
 mod quadtree;
 mod renderer;
 mod simulator;
@@ -16,8 +17,12 @@ pub use app::run;
 /// Exports all the core types of the library.
 pub mod prelude {
     use crate::event_dispatcher::EventDispatcher;
+    pub use crate::graph_data::GraphDisplayData;
+    pub use crate::renderer::elements::{
+        characteristic::Characteristic, element_type::ElementType, generic::*, owl::*, rdf::*,
+        rdfs::*,
+    };
     pub use crate::renderer::events::RenderEvent;
-    pub use crate::renderer::node_types::NodeType;
     pub use crate::simulator::ressources::events::SimulatorEvent;
     pub use crate::simulator::ressources::simulator_vars::{
         Damping, DeltaTime, FreezeThreshold, GravityForce, QuadTreeTheta, RepelForce,
@@ -25,7 +30,7 @@ pub mod prelude {
     };
     use std::sync::LazyLock;
 
-    /// The global event handler for RustGrapher.
+    /// The global event handler for WasmGrapher.
     pub static EVENT_DISPATCHER: LazyLock<EventDispatcher> =
         LazyLock::new(|| EventDispatcher::new());
 }

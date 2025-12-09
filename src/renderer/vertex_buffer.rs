@@ -1,6 +1,9 @@
 use wgpu::util::DeviceExt;
 
-use crate::renderer::{node_shape::NodeShape, node_types::NodeType};
+use crate::renderer::{
+    elements::{element_type::ElementType, owl::*, rdfs::*},
+    node_shape::NodeShape,
+};
 
 // Number of segments to divide each Bézier curve into for strip generation
 const BEZIER_SEGMENTS: usize = 24;
@@ -92,7 +95,7 @@ impl NodeInstance {
 
 pub fn build_node_instances(
     positions: &[[f32; 2]],
-    node_types: &[NodeType],
+    elements: &[ElementType],
     node_shapes: &[NodeShape],
     hovered_index: &i32,
 ) -> Vec<NodeInstance> {
@@ -105,7 +108,7 @@ pub fn build_node_instances(
         let hovered = if i as i32 == *hovered_index { 1 } else { 0 };
         node_instances.push(NodeInstance {
             position: *pos,
-            node_type: node_types[i] as u32,
+            node_type: elements[i].into(),
             shape_type,
             shape_dim,
             hovered,
@@ -117,11 +120,11 @@ pub fn build_node_instances(
 pub fn create_node_instance_buffer(
     device: &wgpu::Device,
     positions: &[[f32; 2]],
-    node_types: &[NodeType],
+    elements: &[ElementType],
     node_shapes: &[NodeShape],
     hovered_index: &i32,
 ) -> wgpu::Buffer {
-    let node_instances = build_node_instances(positions, node_types, node_shapes, hovered_index);
+    let node_instances = build_node_instances(positions, elements, node_shapes, hovered_index);
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("instance_node_buffer"),
         contents: bytemuck::cast_slice(&node_instances),
@@ -203,7 +206,7 @@ pub fn build_line_and_arrow_vertices(
     edges: &[[usize; 3]],
     node_positions: &[[f32; 2]],
     node_shapes: &[NodeShape],
-    node_types: &[NodeType],
+    elements: &[ElementType],
     zoom: f32,
     hovered_index: &i32,
 ) -> (Vec<EdgeVertex>, Vec<EdgeVertex>) {
@@ -223,15 +226,18 @@ pub fn build_line_and_arrow_vertices(
         let center = node_positions[center_idx];
         let mut end = node_positions[end_idx];
 
-        let line_type = match node_types[center_idx] {
-            NodeType::SubclassOf => 1,
-            NodeType::DisjointWith => 2,
-            NodeType::ValuesFrom => 3,
-            _ => match node_types[start_idx] {
-                NodeType::Union
-                | NodeType::DisjointUnion
-                | NodeType::Complement
-                | NodeType::Intersection => 4,
+        let line_type = match elements[center_idx] {
+            ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf)) => 1,
+            ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)) => 2,
+            ElementType::Owl(OwlType::Edge(OwlEdge::ValuesFrom)) => 3,
+            _ => match elements[start_idx] {
+                ElementType::Owl(OwlType::Node(node)) => match node {
+                    OwlNode::UnionOf
+                    | OwlNode::DisjointUnion
+                    | OwlNode::Complement
+                    | OwlNode::IntersectionOf => 4,
+                    _ => 0,
+                },
                 _ => 0,
             },
         };
@@ -544,7 +550,7 @@ pub fn create_edge_vertex_buffer(
     edges: &[[usize; 3]],
     node_positions: &[[f32; 2]],
     node_shapes: &[NodeShape],
-    node_types: &[NodeType],
+    elements: &[ElementType],
     zoom: f32,
     hovered_index: &i32,
 ) -> (wgpu::Buffer, u32, wgpu::Buffer, u32) {
@@ -553,7 +559,7 @@ pub fn create_edge_vertex_buffer(
         edges,
         node_positions,
         node_shapes,
-        node_types,
+        elements,
         zoom,
         hovered_index,
     );
