@@ -1,7 +1,6 @@
-use web_sys::js_sys::Math::atan2;
 use wgpu::util::DeviceExt;
 
-use crate::web::renderer::{
+use crate::renderer::{
     elements::{element_type::ElementType, owl::*, rdfs::*},
     node_shape::NodeShape,
 };
@@ -207,7 +206,7 @@ pub fn build_line_and_arrow_vertices(
     edges: &[[usize; 3]],
     node_positions: &[[f32; 2]],
     node_shapes: &[NodeShape],
-    node_types: &[ElementType],
+    elements: &[ElementType],
     zoom: f32,
     hovered_index: &i32,
 ) -> (Vec<EdgeVertex>, Vec<EdgeVertex>) {
@@ -227,11 +226,11 @@ pub fn build_line_and_arrow_vertices(
         let center = node_positions[center_idx];
         let mut end = node_positions[end_idx];
 
-        let line_type = match node_types[center_idx] {
+        let line_type = match elements[center_idx] {
             ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf)) => 1,
             ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)) => 2,
             ElementType::Owl(OwlType::Edge(OwlEdge::ValuesFrom)) => 3,
-            _ => match node_types[start_idx] {
+            _ => match elements[start_idx] {
                 ElementType::Owl(OwlType::Node(node)) => match node {
                     OwlNode::UnionOf
                     | OwlNode::DisjointUnion
@@ -257,7 +256,7 @@ pub fn build_line_and_arrow_vertices(
             if let NodeShape::Circle { r } = node_shapes[start_idx] {
                 let dx = center[0] - node_center[0];
                 let dy = center[1] - node_center[1];
-                let angle = atan2(dy as f64, dx as f64) as f32;
+                let angle = f32::atan2(dy, dx);
                 let offset_angle = angle + std::f32::consts::FRAC_PI_2;
                 let offset_x = offset_angle.cos() * radius_pix * 0.5;
                 let offset_y = offset_angle.sin() * radius_pix * 0.5;
@@ -374,7 +373,7 @@ pub fn build_line_and_arrow_vertices(
         let tangent_at_end = normalize(bezier_tangent(start, ctrl, end, 1.0));
 
         // Generate strip vertices
-        let mut first_strip = line_vertices.is_empty();
+        let first_strip = line_vertices.is_empty();
 
         if !first_strip {
             // duplicate previous last to avoid breaks
@@ -551,7 +550,7 @@ pub fn create_edge_vertex_buffer(
     edges: &[[usize; 3]],
     node_positions: &[[f32; 2]],
     node_shapes: &[NodeShape],
-    node_types: &[ElementType],
+    elements: &[ElementType],
     zoom: f32,
     hovered_index: &i32,
 ) -> (wgpu::Buffer, u32, wgpu::Buffer, u32) {
@@ -560,7 +559,7 @@ pub fn create_edge_vertex_buffer(
         edges,
         node_positions,
         node_shapes,
-        node_types,
+        elements,
         zoom,
         hovered_index,
     );
