@@ -1,9 +1,9 @@
 use super::renderer::State;
 use crate::graph_data::GraphDisplayData;
 use crate::prelude::ElementType;
-
 use std::sync::Arc;
-
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::EventLoopExtWebSys;
 use winit::{
@@ -13,9 +13,6 @@ use winit::{
     keyboard::PhysicalKey,
     window::Window,
 };
-
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
 
 struct App {
     #[cfg(target_arch = "wasm32")]
@@ -58,6 +55,13 @@ impl ApplicationHandler<State> for App {
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
         let graph = GraphDisplayData::demo(); // TODO: load default ontology (maybe FOAF)
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // If we are not on web we can use pollster to
+            // await the state.
+            self.state = Some(pollster::block_on(State::new(window, graph)).unwrap());
+        }
 
         #[cfg(target_arch = "wasm32")]
         {
