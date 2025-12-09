@@ -1,6 +1,6 @@
 //! Event channels for communicating with the renderer from the outside.
 
-use crate::web::prelude::GraphDisplayData;
+use crate::graph_data::GraphDisplayData;
 
 use super::ElementType;
 
