@@ -1180,7 +1180,7 @@ impl State {
 
         if elapsed.as_secs_f32() >= 1.0 {
             let fps = self.fps_counter as f32 / elapsed.as_secs_f32();
-            info!("FPS: {:.2}", fps);
+            // info!("FPS: {:.2}", fps);
 
             // Reset counters
             self.last_fps_time = now;
@@ -1758,8 +1758,8 @@ impl State {
             .read(&mut self.reader_id)
         {
             match event {
-                RenderEvent::ElementFiltered(element) => todo!(),
-                RenderEvent::ElementShown(element) => todo!(),
+                RenderEvent::ElementFiltered(_element) => todo!(),
+                RenderEvent::ElementShown(_element) => todo!(),
                 RenderEvent::Paused => self.paused = true,
                 RenderEvent::Resumed => self.paused = false,
                 RenderEvent::Zoomed(zoom) => {
@@ -1767,8 +1767,296 @@ impl State {
                     self.handle_scroll(delta);
                 }
                 RenderEvent::CenterGraph => self.center_graph(),
+                RenderEvent::LoadGraph(graph) => {
+                    self.load_new_graph(graph.clone());
+                }
             }
         }
+    }
+
+    /// Process data and rebuild buffers/simulator
+    fn load_new_graph(&mut self, graph: GraphDisplayData) {
+        self.labels = graph.labels;
+        self.elements = graph.elements;
+        self.edges = if graph.edges.len() > 0 {
+            graph.edges
+        } else {
+            vec![[0, 0, 0]]
+        };
+        self.cardinalities = graph.cardinalities;
+        self.characteristics = graph.characteristics;
+
+        // Recalculate Node Shapes
+        let mut node_shapes = vec![];
+        for element in self.elements.iter() {
+            match element {
+                ElementType::Owl(OwlType::Node(node)) => match node {
+                    OwlNode::Class
+                    | OwlNode::AnonymousClass
+                    | OwlNode::Complement
+                    | OwlNode::DeprecatedClass
+                    | OwlNode::ExternalClass
+                    | OwlNode::DisjointUnion
+                    | OwlNode::EquivalentClass
+                    | OwlNode::IntersectionOf
+                    | OwlNode::UnionOf => {
+                        node_shapes.push(NodeShape::Circle { r: 1.0 });
+                    }
+                    OwlNode::Thing => {
+                        node_shapes.push(NodeShape::Circle { r: 0.7 });
+                    }
+                },
+                ElementType::Owl(OwlType::Edge(edge)) => match edge {
+                    OwlEdge::DatatypeProperty
+                    | OwlEdge::ObjectProperty
+                    | OwlEdge::DisjointWith
+                    | OwlEdge::DeprecatedProperty
+                    | OwlEdge::ExternalProperty
+                    | OwlEdge::InverseOf
+                    | OwlEdge::ValuesFrom => {
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
+                    }
+                },
+                ElementType::Rdfs(RdfsType::Node(node)) => match node {
+                    RdfsNode::Class | RdfsNode::Resource => {
+                        node_shapes.push(NodeShape::Circle { r: 1.0 });
+                    }
+                    RdfsNode::Literal => {
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
+                    }
+                },
+                ElementType::Rdfs(RdfsType::Edge(edge)) => match edge {
+                    RdfsEdge::Datatype | RdfsEdge::SubclassOf => {
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
+                    }
+                },
+                ElementType::Rdf(RdfType::Edge(edge)) => match edge {
+                    RdfEdge::RdfProperty => {
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
+                    }
+                },
+                ElementType::NoDraw => {
+                    node_shapes.push(NodeShape::Circle { r: 1.0 });
+                }
+                ElementType::Generic(_generic_type) => todo!(),
+            }
+        }
+
+        // Handle empty graph
+        if node_shapes.is_empty() {
+            self.positions = vec![[0.0, 0.0]];
+            self.labels = vec!["".to_string()];
+            node_shapes.push(NodeShape::Circle { r: 0.0 });
+            self.elements.push(ElementType::NoDraw);
+        } else {
+            // Reset positions
+            self.positions = vec![];
+            for i in 0..self.elements.len() {
+                self.positions.push([
+                    f32::fract(f32::sin(i as f32) * 12345.6789),
+                    f32::fract(f32::sin(i as f32) * 98765.4321),
+                ]);
+            }
+        }
+
+        // Reset zoom/pan
+        self.zoom = 1.0;
+        self.pan = Vec2::new(0.0, 0.0);
+
+        // Measure text and resize shapes
+        if let Some(font_system) = self.font_system.as_mut() {
+            let scale = self.window.scale_factor() as f32;
+
+            for (i, label_text) in self.labels.clone().iter().enumerate() {
+                if let Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) =
+                    self.elements.get(i)
+                {
+                    node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
+                    continue;
+                }
+                if label_text.is_empty() {
+                    continue;
+                }
+
+                let mut temp_buffer =
+                    glyphon::Buffer::new(font_system, Metrics::new(12.0 * scale, 12.0 * scale));
+                temp_buffer.set_text(font_system, &label_text, &Attrs::new(), Shaping::Advanced);
+
+                let text_width = temp_buffer
+                    .layout_runs()
+                    .map(|run| run.line_w)
+                    .fold(0.0, f32::max);
+                temp_buffer.shape_until_scroll(font_system, false);
+
+                let mut capped_width = 44.0 * scale;
+                let mut max_lines = 0;
+                match node_shapes.get_mut(i) {
+                    Some(NodeShape::Rectangle { w, .. }) => {
+                        let new_width_pixels = text_width;
+                        *w = f32::min(new_width_pixels / (capped_width * 2.0) * 1.05, 2.0);
+                        if matches!(
+                            self.elements[i],
+                            ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
+                        ) {
+                            continue;
+                        }
+                        max_lines = 1;
+                        capped_width *= 4.0;
+                    }
+                    Some(NodeShape::Circle { r }) => match self.elements[i] {
+                        ElementType::Owl(OwlType::Node(node)) => match node {
+                            OwlNode::EquivalentClass => continue,
+                            OwlNode::Complement
+                            | OwlNode::DisjointUnion
+                            | OwlNode::UnionOf
+                            | OwlNode::IntersectionOf => {
+                                max_lines = 1;
+                                capped_width = 79.0 * scale;
+                            }
+                            _ => {
+                                max_lines = 2;
+                                capped_width *= *r * 2.0 - 0.1;
+                            }
+                        },
+                        _ => {
+                            max_lines = 2;
+                            capped_width *= *r * 2.0 - 0.1;
+                        }
+                    },
+                    None => {}
+                }
+
+                // Truncation logic
+                let current_text = label_text.clone();
+                temp_buffer.set_wrap(font_system, glyphon::Wrap::Word);
+                temp_buffer.set_size(font_system, Some(capped_width), None);
+                temp_buffer.set_text(font_system, &current_text, &Attrs::new(), Shaping::Advanced);
+                temp_buffer.shape_until_scroll(font_system, false);
+
+                if temp_buffer.layout_runs().count() > max_lines {
+                    let mut low = 0;
+                    let mut high = current_text.len();
+                    let mut truncated = current_text.clone();
+
+                    while low < high {
+                        let mid = (low + high) / 2;
+                        let candidate = format!("{}…", &current_text[..mid]);
+                        temp_buffer.set_text(
+                            font_system,
+                            &candidate,
+                            &Attrs::new(),
+                            Shaping::Advanced,
+                        );
+                        temp_buffer.shape_until_scroll(font_system, false);
+                        if temp_buffer.layout_runs().count() > max_lines {
+                            high = mid;
+                        } else {
+                            truncated = candidate.clone();
+                            low = mid + 1;
+                        }
+                    }
+                    self.labels[i] = truncated;
+                }
+            }
+        }
+
+        self.node_shapes = node_shapes;
+
+        // Update buffers
+        self.num_instances = self.positions.len() as u32;
+        self.node_instance_buffer = vertex_buffer::create_node_instance_buffer(
+            &self.device,
+            &self.positions,
+            &self.elements,
+            &self.node_shapes,
+            &self.hovered_index,
+        );
+
+        // Rebuild solitary edges
+        let mut neighbor_map: HashMap<(usize, usize), Vec<usize>> = HashMap::new();
+        for [start, center, end] in &self.edges {
+            let mut neighbors = neighbor_map.get(&(*start, *end));
+            if neighbors.is_none() {
+                neighbors = neighbor_map.get(&(*end, *start));
+            };
+            match neighbors {
+                Some(cur_neighbors) => {
+                    let mut new_neighbors = cur_neighbors.clone();
+                    new_neighbors.push(*center);
+                    neighbor_map.insert(
+                        (usize::min(*start, *end), usize::max(*start, *end)),
+                        new_neighbors,
+                    );
+                }
+                None => {
+                    neighbor_map.insert(
+                        (usize::min(*start, *end), usize::max(*start, *end)),
+                        vec![*center],
+                    );
+                }
+            }
+        }
+        self.solitary_edges = vec![];
+        for [start, center, end] in &self.edges {
+            let num_neighbors = neighbor_map
+                .get(&(usize::min(*start, *end), usize::max(*start, *end)))
+                .unwrap()
+                .len();
+            if num_neighbors < 2
+                || (matches!(
+                    self.elements[*center],
+                    ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
+                ) && num_neighbors <= 2)
+            {
+                self.solitary_edges.push([*start, *center, *end]);
+            }
+        }
+
+        let (edge_vb, num_edge, arrow_vb, num_arrow) = vertex_buffer::create_edge_vertex_buffer(
+            &self.device,
+            &self.edges,
+            &self.positions,
+            &self.node_shapes,
+            &self.elements,
+            self.zoom,
+            &self.hovered_index,
+        );
+        self.edge_vertex_buffer = edge_vb;
+        self.num_edge_vertices = num_edge;
+        self.arrow_vertex_buffer = arrow_vb;
+        self.num_arrow_vertices = num_arrow;
+
+        // Rebuild simulator
+        let mut sim_nodes = Vec::with_capacity(self.positions.len());
+        for pos in self.positions.iter() {
+            sim_nodes.push(Vec2::new(pos[0], pos[1]));
+        }
+
+        let mut sim_edges = Vec::with_capacity(self.edges.len());
+        for [start, center, end] in &self.edges {
+            sim_edges.push([*start as u32, *center as u32]);
+            sim_edges.push([*center as u32, *end as u32]);
+        }
+
+        let mut sim_sizes = Vec::with_capacity(self.positions.len());
+        for node_shape in self.node_shapes.clone() {
+            match node_shape {
+                NodeShape::Circle { r } => sim_sizes.push(r),
+                NodeShape::Rectangle { w, .. } => sim_sizes.push(w),
+            }
+        }
+
+        self.simulator = Simulator::builder().build(sim_nodes, sim_edges, sim_sizes);
+
+        // Regenerate text buffers
+        self.text_buffers = None;
+        self.cardinality_text_buffers = None;
+        self.font_system = None;
+        self.init_glyphon();
+
+        // Reset interaction state
+        self.hovered_index = -1;
+        self.radial_menu_state.active = false;
     }
 
     pub fn handle_key(&mut self, code: KeyCode, is_pressed: bool) {

@@ -1,5 +1,7 @@
 //! Event channels for communicating with the renderer from the outside.
 
+use crate::graph_data::GraphDisplayData;
+
 use super::ElementType;
 
 /// Describes an event received by a render [`State`].
@@ -23,4 +25,7 @@ pub enum RenderEvent {
 
     // Zoom to show all nodes
     CenterGraph,
+
+    // Loads a new graph from input
+    LoadGraph(GraphDisplayData),
 }

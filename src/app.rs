@@ -57,7 +57,7 @@ impl ApplicationHandler<State> for App {
 
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
-        let graph = GraphDisplayData::demo();
+        let graph = GraphDisplayData::demo(); // TODO: load default ontology (maybe FOAF)
 
         #[cfg(target_arch = "wasm32")]
         {
@@ -92,6 +92,7 @@ impl ApplicationHandler<State> for App {
         }
         self.state = Some(event);
     }
+
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
