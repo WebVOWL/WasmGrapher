@@ -23,7 +23,7 @@ use glyphon::{
     SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
 use log::info;
-use specs::{Join, ReaderId, WorldExt};
+use specs::{Join, WorldExt};
 use std::{cmp::min, collections::HashMap, sync::Arc};
 use vertex_buffer::{MenuUniforms, NodeInstance, VERTICES, Vertex, ViewUniforms};
 #[cfg(target_arch = "wasm32")]
@@ -92,9 +92,6 @@ pub struct State {
     pan: Vec2,
     zoom: f32,
     click_start_pos: Option<Vec2>,
-
-    // Events
-    reader_id: ReaderId<RenderEvent>,
 
     // Performance
     last_fps_time: Instant,
@@ -784,12 +781,6 @@ impl State {
         // If the surface is already configured (non-zero initial size), initialize glyphon now.
         // Helper below will create FontSystem, SwashCache, Viewport, TextAtlas, TextRenderer and buffers.
 
-        let reader_id = EVENT_DISPATCHER
-            .rend_chan
-            .write()
-            .unwrap()
-            .register_reader();
-
         let mut state = Self {
             surface,
             device,
@@ -821,7 +812,6 @@ impl State {
             simulator,
             paused: false,
             hovered_index,
-            reader_id,
             last_fps_time: Instant::now(),
             fps_counter: 0,
             cursor_position: None,
@@ -1751,24 +1741,19 @@ impl State {
     }
 
     pub fn handle_external_events(&mut self) {
-        for event in EVENT_DISPATCHER
-            .rend_chan
-            .read()
-            .unwrap()
-            .read(&mut self.reader_id)
-        {
+        for event in EVENT_DISPATCHER.rend_read_chan.drain() {
             match event {
                 RenderEvent::ElementFiltered(_element) => todo!(),
                 RenderEvent::ElementShown(_element) => todo!(),
                 RenderEvent::Paused => self.paused = true,
                 RenderEvent::Resumed => self.paused = false,
                 RenderEvent::Zoomed(zoom) => {
-                    let delta = MouseScrollDelta::PixelDelta(PhysicalPosition { x: 0.0, y: *zoom });
+                    let delta = MouseScrollDelta::PixelDelta(PhysicalPosition { x: 0.0, y: zoom });
                     self.handle_scroll(delta);
                 }
                 RenderEvent::CenterGraph => self.center_graph(),
                 RenderEvent::LoadGraph(graph) => {
-                    self.load_new_graph(graph.clone());
+                    self.load_new_graph(graph);
                 }
             }
         }
@@ -2085,10 +2070,8 @@ impl State {
                         self.node_dragged = true;
                         let pos_world = self.screen_to_world(pos);
                         EVENT_DISPATCHER
-                            .sim_chan
-                            .write()
-                            .unwrap()
-                            .single_write(SimulatorEvent::DragStart(pos_world));
+                            .sim_write_chan
+                            .send(SimulatorEvent::DragStart(pos_world));
                     }
                 }
             }
@@ -2102,10 +2085,8 @@ impl State {
                 if self.node_dragged {
                     self.node_dragged = false;
                     EVENT_DISPATCHER
-                        .sim_chan
-                        .write()
-                        .unwrap()
-                        .single_write(SimulatorEvent::DragEnd);
+                        .sim_write_chan
+                        .send(SimulatorEvent::DragEnd);
                 }
 
                 if let (Some(start), Some(end)) = (self.click_start_pos, self.cursor_position) {
@@ -2185,10 +2166,8 @@ impl State {
             // Convert screen coordinates to world coordinates before sending to simulator
             let pos_world = self.screen_to_world(pos_screen);
             EVENT_DISPATCHER
-                .sim_chan
-                .write()
-                .unwrap()
-                .single_write(SimulatorEvent::Dragged(pos_world));
+                .sim_write_chan
+                .send(SimulatorEvent::Dragged(pos_world));
         } else if self.pan_active {
             if let Some(last_pos_screen) = self.last_pan_position {
                 // 1. Get the world position of the cursor now.
