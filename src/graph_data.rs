@@ -153,6 +153,7 @@ impl std::fmt::Display for GraphDisplayData {
             "\tlabels: {:#?}",
             self.labels
                 .iter()
+                .enumerate()
                 .map(|(i, label)| format!("[{i}] {label}"))
                 .collect::<Vec<_>>()
         )?;
