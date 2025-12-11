@@ -10,7 +10,7 @@ pub struct GraphDisplayData {
     ///
     /// The index into this vector is the ID of the node/edge having a label.
     /// The ID is defined by the indices of `elements`.
-    pub labels: Vec<String>,
+    pub labels: HashMap<usize, String>,
     /// Elements are the nodes and edge types for which visualization is supported.
     ///
     /// The index into this vector determines the unique ID of each element.
@@ -42,7 +42,8 @@ impl GraphDisplayData {
     }
 
     pub fn demo() -> Self {
-        let labels = vec![
+        let mut labels = HashMap::new();
+        let label_vec = vec![
             String::from("My class"),
             String::from("Rdfs class"),
             String::from("Rdfs resource"),
@@ -70,6 +71,9 @@ impl GraphDisplayData {
             String::new(),
             String::new(),
         ];
+        for (i, label) in label_vec.iter().enumerate() {
+            labels.insert(i, label.clone());
+        }
         let elements = vec![
             ElementType::Owl(OwlType::Node(OwlNode::Class)),
             ElementType::Rdfs(RdfsType::Node(RdfsNode::Class)),
@@ -136,7 +140,7 @@ impl GraphDisplayData {
 impl Default for GraphDisplayData {
     fn default() -> Self {
         Self {
-            labels: Vec::new(),
+            labels: HashMap::new(),
             elements: Vec::new(),
             edges: Vec::new(),
             cardinalities: Vec::new(),

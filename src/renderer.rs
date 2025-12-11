@@ -73,7 +73,7 @@ pub struct State {
 
     // Node and edge coordinates in pixels
     positions: Vec<[f32; 2]>,
-    labels: Vec<String>,
+    labels: HashMap<usize, String>,
     edges: Vec<[usize; 3]>,
     solitary_edges: Vec<[usize; 3]>,
     elements: Vec<ElementType>,
@@ -300,7 +300,7 @@ impl State {
         }
         if positions.len() == 0 {
             positions.push([0.0, 0.0]);
-            labels.push("".to_string());
+            labels.insert(0, "".to_string());
             node_shapes.push(NodeShape::Circle { r: 0.0 });
             elements.push(ElementType::NoDraw);
         }
@@ -326,10 +326,10 @@ impl State {
         let mut labels = labels;
 
         // iterate over labels and update the width of corresponding rectangle nodes
-        for (i, label_text) in labels.clone().iter().enumerate() {
+        for (i, label_text) in labels.clone().iter() {
             // Set fixed size for disjoint property
-            if let Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) = elements.get(i) {
-                node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
+            if let Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) = elements.get(*i) {
+                node_shapes[*i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
                 continue;
             }
             // check if the node is a rectangle and get a mutable reference to its properties
@@ -358,12 +358,12 @@ impl State {
             temp_buffer.shape_until_scroll(&mut font_system, false);
             let mut capped_width = 44.0 * scale;
             let mut max_lines = 0;
-            match node_shapes.get_mut(i) {
+            match node_shapes.get_mut(*i) {
                 Some(NodeShape::Rectangle { w, .. }) => {
                     let new_width_pixels = text_width;
                     *w = f32::min(new_width_pixels / (capped_width * 2.0) * 1.05, 2.0);
                     if matches!(
-                        elements[i],
+                        elements[*i],
                         ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
                     ) {
                         continue;
@@ -371,7 +371,7 @@ impl State {
                     max_lines = 1;
                     capped_width *= 4.0;
                 }
-                Some(NodeShape::Circle { r }) => match elements[i] {
+                Some(NodeShape::Circle { r }) => match elements[*i] {
                     ElementType::Owl(OwlType::Node(node)) => match node {
                         OwlNode::EquivalentClass => continue,
                         OwlNode::Complement
@@ -437,10 +437,9 @@ impl State {
                     }
                 }
 
-                labels[i] = truncated;
+                labels.insert(*i, truncated);
             }
         }
-
         // Combine positions and types into NodeInstance entries
         let node_instance_buffer = vertex_buffer::create_node_instance_buffer(
             &device,
@@ -893,15 +892,15 @@ impl State {
         );
         let scale = self.window.scale_factor() as f32;
         let mut text_buffers: Vec<GlyphBuffer> = Vec::new();
-        for (i, label) in self.labels.clone().iter().enumerate() {
+        for (i, label) in self.labels.clone().iter() {
             let font_px = 12.0 * scale; // font size in physical pixels
             let line_px = 12.0 * scale;
             let mut buf = GlyphBuffer::new(&mut font_system, Metrics::new(font_px, line_px));
             // per-label size (in physical pixels)
-            let (label_width, label_height) = match self.node_shapes[i] {
+            let (label_width, label_height) = match self.node_shapes[*i] {
                 NodeShape::Rectangle { w, .. } => {
                     // Calculate physical pixel width from shape's width multiplier
-                    let mut height = match self.elements[i] {
+                    let mut height = match self.elements[*i] {
                         ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)) => 48.0,
                         _ => 12.0,
                     };
@@ -911,7 +910,7 @@ impl State {
                     (w * 85.0 * scale, height * scale)
                 }
                 NodeShape::Circle { r } => {
-                    let mut height = match self.elements[i] {
+                    let mut height = match self.elements[*i] {
                         ElementType::Owl(OwlType::Node(node)) => match node {
                             OwlNode::ExternalClass
                             | OwlNode::DeprecatedClass
@@ -931,7 +930,7 @@ impl State {
                     if self.characteristics.contains_key(&i) {
                         height += 24.0;
                     };
-                    let width = match self.elements[i] {
+                    let width = match self.elements[*i] {
                         ElementType::Owl(OwlType::Node(node)) => match node {
                             OwlNode::UnionOf
                             | OwlNode::DisjointUnion
@@ -950,7 +949,7 @@ impl State {
             let attrs = &Attrs::new().family(Family::SansSerif);
             let element_metrics = Metrics::new(font_px - 3.0, line_px);
             let mut owned_spans: Vec<(String, Attrs)> = Vec::new();
-            match self.elements[i] {
+            match self.elements[*i] {
                 ElementType::Owl(OwlType::Node(node)) => {
                     match node {
                         OwlNode::EquivalentClass => {
@@ -1062,7 +1061,7 @@ impl State {
 
             // Append characteristic as a small parenthesized suffix if present.
             if !matches!(
-                self.elements[i],
+                self.elements[*i],
                 ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
             ) {
                 if let Some(ch) = self.characteristics.get(&i) {
@@ -1830,7 +1829,8 @@ impl State {
         // Handle empty graph
         if node_shapes.is_empty() {
             self.positions = vec![[0.0, 0.0]];
-            self.labels = vec!["".to_string()];
+            self.labels = HashMap::new();
+            self.labels.insert(0, "".to_string());
             node_shapes.push(NodeShape::Circle { r: 0.0 });
             self.elements.push(ElementType::NoDraw);
         } else {
@@ -1852,11 +1852,12 @@ impl State {
         if let Some(font_system) = self.font_system.as_mut() {
             let scale = self.window.scale_factor() as f32;
 
-            for (i, label_text) in self.labels.clone().iter().enumerate() {
+            let mut truncated_labels = HashMap::new();
+            for (i, label_text) in self.labels.iter() {
                 if let Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) =
-                    self.elements.get(i)
+                    self.elements.get(*i)
                 {
-                    node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
+                    node_shapes[*i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
                     continue;
                 }
                 if label_text.is_empty() {
@@ -1875,12 +1876,12 @@ impl State {
 
                 let mut capped_width = 44.0 * scale;
                 let mut max_lines = 0;
-                match node_shapes.get_mut(i) {
+                match node_shapes.get_mut(*i) {
                     Some(NodeShape::Rectangle { w, .. }) => {
                         let new_width_pixels = text_width;
                         *w = f32::min(new_width_pixels / (capped_width * 2.0) * 1.05, 2.0);
                         if matches!(
-                            self.elements[i],
+                            self.elements[*i],
                             ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
                         ) {
                             continue;
@@ -1888,7 +1889,7 @@ impl State {
                         max_lines = 1;
                         capped_width *= 4.0;
                     }
-                    Some(NodeShape::Circle { r }) => match self.elements[i] {
+                    Some(NodeShape::Circle { r }) => match self.elements[*i] {
                         ElementType::Owl(OwlType::Node(node)) => match node {
                             OwlNode::EquivalentClass => continue,
                             OwlNode::Complement
@@ -1912,7 +1913,7 @@ impl State {
                 }
 
                 // Truncation logic
-                let current_text = label_text.clone();
+                let current_text = label_text;
                 temp_buffer.set_wrap(font_system, glyphon::Wrap::Word);
                 temp_buffer.set_size(font_system, Some(capped_width), None);
                 temp_buffer.set_text(font_system, &current_text, &Attrs::new(), Shaping::Advanced);
@@ -1940,8 +1941,11 @@ impl State {
                             low = mid + 1;
                         }
                     }
-                    self.labels[i] = truncated;
+                    truncated_labels.insert(*i, truncated);
                 }
+            }
+            for (i, label) in truncated_labels {
+                self.labels.insert(i, label);
             }
         }
 
@@ -2365,12 +2369,18 @@ impl State {
     }
 
     fn freeze_node(&self, index: usize) {
-        log::info!("Freeze Node: {}", self.labels[index]);
+        log::info!(
+            "Freeze Node: {}",
+            self.labels.get(&index).unwrap_or(&"None".to_string())
+        );
         // TODO: Implement freeze logic
     }
 
     fn subgraph_node(&self, index: usize) {
-        log::info!("Create Subgraph from Node: {}", self.labels[index]);
+        log::info!(
+            "Create Subgraph from Node: {}",
+            self.labels.get(&index).unwrap_or(&"None".to_string())
+        );
         // TODO: Implement subgraph logic
     }
 }
