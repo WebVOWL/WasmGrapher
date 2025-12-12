@@ -2153,6 +2153,25 @@ impl State {
                 }
                 self.click_start_pos = None;
             }
+            (MouseButton::Right, true) => {
+                // Start panning
+
+                if let Some(pos) = self.cursor_position {
+                    if !self.node_dragged {
+                        self.pan_active = true;
+
+                        self.last_pan_position = Some(pos);
+                    }
+                }
+            }
+
+            (MouseButton::Right, false) => {
+                // Stop panning
+
+                self.pan_active = false;
+
+                self.last_pan_position = None;
+            }
             _ => {}
         }
     }
