@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 /// Struct containing graph data for WasmGrapher
 #[repr(C)]
-#[derive(Archive, Deserialize, Serialize, PartialEq)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
 pub struct GraphDisplayData {
     /// Labels annotate classes and properties
     ///
@@ -148,11 +148,34 @@ impl Default for GraphDisplayData {
 impl std::fmt::Display for GraphDisplayData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "GraphDisplayData {{")?;
-        writeln!(f, "\tlabels: {:#?}", self.labels)?;
-        writeln!(f, "\telements: {:#?}", self.elements)?;
-        writeln!(f, "\tedges: {:#?}", self.edges)?;
-        writeln!(f, "\tcardinalities: {:#?}", self.cardinalities)?;
-        writeln!(f, "\tcharacteristics: {:#?}", self.characteristics)?;
+        writeln!(
+            f,
+            "\tlabels: {:#?}",
+            self.labels
+                .iter()
+                .enumerate()
+                .map(|(i, label)| format!("[{i}] {label}"))
+                .collect::<Vec<_>>()
+        )?;
+        writeln!(
+            f,
+            "\telements: {:#?}",
+            self.elements
+                .iter()
+                .enumerate()
+                .map(|(i, element)| format!("[{i}] {}", element.to_string()))
+                .collect::<Vec<_>>()
+        )?;
+        writeln!(
+            f,
+            "\tedges: {:#?}",
+            self.edges
+                .iter()
+                .map(|edge| format!("{:?}", edge))
+                .collect::<Vec<_>>()
+        )?;
+        writeln!(f, "\tcardinalities: {:?}", self.cardinalities)?;
+        writeln!(f, "\tcharacteristics: {:?}", self.characteristics)?;
         writeln!(f, "}}")
     }
 }

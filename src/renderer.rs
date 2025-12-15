@@ -951,6 +951,9 @@ impl State {
             let element_metrics = Metrics::new(font_px - 3.0, line_px);
             let mut owned_spans: Vec<(String, Attrs)> = Vec::new();
             match self.elements[i] {
+                ElementType::NoDraw => {
+                    owned_spans.push(("".to_string(), attrs.clone()));
+                }
                 ElementType::Owl(OwlType::Node(node)) => {
                     match node {
                         OwlNode::EquivalentClass => {
@@ -2152,6 +2155,25 @@ impl State {
                     }
                 }
                 self.click_start_pos = None;
+            }
+            (MouseButton::Right, true) => {
+                // Start panning
+
+                if let Some(pos) = self.cursor_position {
+                    if !self.node_dragged {
+                        self.pan_active = true;
+
+                        self.last_pan_position = Some(pos);
+                    }
+                }
+            }
+
+            (MouseButton::Right, false) => {
+                // Stop panning
+
+                self.pan_active = false;
+
+                self.last_pan_position = None;
             }
             _ => {}
         }
