@@ -70,6 +70,7 @@ Element codes for RDFS nodes.
 | 20000 | Class    |         |
 | 20001 | Literal  |         |
 | 20002 | Resource |         |
+| 20003 | Datatype |         |
 
 ### Edges [25_000 .. 29_999]
 
@@ -77,8 +78,7 @@ Element codes for RDFS edges.
 
 | Code  | Type       | Comment |
 | :---: | :--------- | :------ |
-| 25000 | Datatype   |         |
-| 25001 | SubclassOf |         |
+| 25000 | SubclassOf |         |
 
 ## OWL [30_000 .. 39_999]
 

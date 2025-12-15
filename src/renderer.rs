@@ -273,12 +273,12 @@ impl State {
                     RdfsNode::Class | RdfsNode::Resource => {
                         node_shapes.push(NodeShape::Circle { r: 1.0 });
                     }
-                    RdfsNode::Literal => {
+                    RdfsNode::Literal | RdfsNode::Datatype => {
                         node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
                     }
                 },
                 ElementType::Rdfs(RdfsType::Edge(edge)) => match edge {
-                    RdfsEdge::Datatype | RdfsEdge::SubclassOf => {
+                    RdfsEdge::SubclassOf => {
                         node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
                     }
                 },
@@ -1806,12 +1806,12 @@ impl State {
                     RdfsNode::Class | RdfsNode::Resource => {
                         node_shapes.push(NodeShape::Circle { r: 1.0 });
                     }
-                    RdfsNode::Literal => {
+                    RdfsNode::Literal | RdfsNode::Datatype => {
                         node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
                     }
                 },
                 ElementType::Rdfs(RdfsType::Edge(edge)) => match edge {
-                    RdfsEdge::Datatype | RdfsEdge::SubclassOf => {
+                    RdfsEdge::SubclassOf => {
                         node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
                     }
                 },

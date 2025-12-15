@@ -798,9 +798,9 @@ fn draw_node_by_type(element_type: u32, v_uv: vec2<f32>, shape_dimensions: vec2<
             case 20000: {return draw_rdfs_class(v_uv, hovered);}
             case 20001: {return draw_literal(v_uv, shape_dimensions, hovered);}
             case 20002: {return draw_rdfs_resource(v_uv, hovered);}
+            case 20003: {return draw_datatype(v_uv, shape_dimensions, hovered);}
             // RDFS edges
-            case 25000: {return draw_datatype(v_uv, shape_dimensions, hovered);}
-            case 25001: {return draw_property(v_uv, shape_dimensions, vec3<f32>(1.0), hovered);}
+            case 25000: {return draw_property(v_uv, shape_dimensions, vec3<f32>(1.0), hovered);}
             // OWL nodes
             case 30000: {return draw_anonymous_class(v_uv, hovered);}
             case 30001: {return draw_class(v_uv, hovered);}
