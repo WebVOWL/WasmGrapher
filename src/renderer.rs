@@ -951,6 +951,9 @@ impl State {
             let element_metrics = Metrics::new(font_px - 3.0, line_px);
             let mut owned_spans: Vec<(String, Attrs)> = Vec::new();
             match self.elements[i] {
+                ElementType::NoDraw => {
+                    owned_spans.push(("".to_string(), attrs.clone()));
+                }
                 ElementType::Owl(OwlType::Node(node)) => {
                     match node {
                         OwlNode::EquivalentClass => {
