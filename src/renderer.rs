@@ -24,7 +24,7 @@ use glyphon::{
 };
 use log::info;
 use specs::{Join, WorldExt};
-use std::{cmp::min, collections::HashMap, sync::Arc};
+use std::{cmp::min, collections::HashMap, collections::HashSet, sync::Arc};
 use vertex_buffer::{MenuUniforms, NodeInstance, VERTICES, Vertex, ViewUniforms};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -279,7 +279,7 @@ impl State {
                 },
                 ElementType::Rdfs(RdfsType::Edge(edge)) => match edge {
                     RdfsEdge::SubclassOf => {
-                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
+                        node_shapes.push(NodeShape::Rectangle { w: 0.7, h: 1.0 });
                     }
                 },
                 // ElementType::Rdf(RdfType::Node(node)) => todo!(),
@@ -330,6 +330,12 @@ impl State {
             // Set fixed size for disjoint property
             if let Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) = elements.get(i) {
                 node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
+                labels[i] = String::new();
+                continue;
+            }
+            if let Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))) = elements.get(i) {
+                node_shapes[i] = NodeShape::Rectangle { w: 1.0, h: 1.0 };
+                labels[i] = String::new();
                 continue;
             }
             // check if the node is a rectangle and get a mutable reference to its properties
@@ -614,29 +620,14 @@ impl State {
         });
 
         // Exclude properties without neighbors from simulator
-        let mut neighbor_map: HashMap<(usize, usize), Vec<usize>> = HashMap::new();
+        let mut neighbor_map: HashMap<(usize, usize), Vec<(usize, usize)>> = HashMap::new();
         for [start, center, end] in &edges {
-            let mut neighbors = neighbor_map.get(&(*start, *end));
-            if neighbors.is_none() {
-                neighbors = neighbor_map.get(&(*end, *start));
-            };
-            match neighbors {
-                Some(cur_neighbors) => {
-                    let mut new_neighbors = cur_neighbors.clone();
-                    new_neighbors.push(*center);
-                    neighbor_map.insert(
-                        (usize::min(*start, *end), usize::max(*start, *end)),
-                        new_neighbors,
-                    );
-                }
-                None => {
-                    neighbor_map.insert(
-                        (usize::min(*start, *end), usize::max(*start, *end)),
-                        vec![*center],
-                    );
-                }
-            }
+            neighbor_map
+                .entry((usize::min(*start, *end), usize::max(*start, *end)))
+                .or_default()
+                .push((*center, *start));
         }
+
         let mut solitary_edges: Vec<[usize; 3]> = vec![];
         for [start, center, end] in &edges {
             let num_neighbors = neighbor_map
@@ -650,6 +641,34 @@ impl State {
                 ) && num_neighbors <= 2)
             {
                 solitary_edges.push([*start, *center, *end]);
+            }
+        }
+
+        // Filter duplicates
+        for ((node_a, node_b), centers) in neighbor_map {
+            let mut center_set: HashSet<(ElementType, String, usize)> = HashSet::new();
+            let mut visible_centers = Vec::new();
+            let initial_count = centers.len();
+
+            for (center, src) in centers {
+                let key = (elements[center], labels[center].clone(), src);
+                if center_set.contains(&key) {
+                    elements[center] = ElementType::NoDraw;
+                    node_shapes[center] = match node_shapes[center] {
+                        NodeShape::Circle { r } => NodeShape::Circle { r: 0.01 },
+                        NodeShape::Rectangle { w, h } => NodeShape::Rectangle { w: 0.01, h: 0.01 },
+                    }
+                } else {
+                    center_set.insert(key);
+                    visible_centers.push((center, src));
+                }
+            }
+
+            // Update solitary edges
+            if initial_count >= 2 && visible_centers.len() == 1 {
+                let (center, start) = visible_centers[0];
+                let end = if start == node_a { node_b } else { node_a };
+                solitary_edges.push([start, center, end]);
             }
         }
 
@@ -1860,6 +1879,14 @@ impl State {
                     self.elements.get(i)
                 {
                     node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
+                    self.labels[i] = String::new();
+                    continue;
+                }
+                if let Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))) =
+                    self.elements.get(i)
+                {
+                    node_shapes[i] = NodeShape::Rectangle { w: 1.0, h: 1.0 };
+                    self.labels[i] = String::new();
                     continue;
                 }
                 if label_text.is_empty() {
@@ -1961,29 +1988,14 @@ impl State {
         );
 
         // Rebuild solitary edges
-        let mut neighbor_map: HashMap<(usize, usize), Vec<usize>> = HashMap::new();
+        let mut neighbor_map: HashMap<(usize, usize), Vec<(usize, usize)>> = HashMap::new();
         for [start, center, end] in &self.edges {
-            let mut neighbors = neighbor_map.get(&(*start, *end));
-            if neighbors.is_none() {
-                neighbors = neighbor_map.get(&(*end, *start));
-            };
-            match neighbors {
-                Some(cur_neighbors) => {
-                    let mut new_neighbors = cur_neighbors.clone();
-                    new_neighbors.push(*center);
-                    neighbor_map.insert(
-                        (usize::min(*start, *end), usize::max(*start, *end)),
-                        new_neighbors,
-                    );
-                }
-                None => {
-                    neighbor_map.insert(
-                        (usize::min(*start, *end), usize::max(*start, *end)),
-                        vec![*center],
-                    );
-                }
-            }
+            neighbor_map
+                .entry((usize::min(*start, *end), usize::max(*start, *end)))
+                .or_default()
+                .push((*center, *start));
         }
+
         self.solitary_edges = vec![];
         for [start, center, end] in &self.edges {
             let num_neighbors = neighbor_map
@@ -1997,6 +2009,34 @@ impl State {
                 ) && num_neighbors <= 2)
             {
                 self.solitary_edges.push([*start, *center, *end]);
+            }
+        }
+
+        // Filter duplicates in reloaded graph
+        for ((node_a, node_b), centers) in neighbor_map {
+            let mut center_set: HashSet<(ElementType, String, usize)> = HashSet::new();
+            let mut visible_centers = Vec::new();
+            let initial_count = centers.len();
+
+            for (center, src) in centers {
+                let key = (self.elements[center], self.labels[center].clone(), src);
+                if center_set.contains(&key) {
+                    self.elements[center] = ElementType::NoDraw;
+                    self.node_shapes[center] = match self.node_shapes[center] {
+                        NodeShape::Circle { r } => NodeShape::Circle { r: 0.01 },
+                        NodeShape::Rectangle { w, h } => NodeShape::Rectangle { w: 0.01, h: 0.01 },
+                    }
+                } else {
+                    center_set.insert(key);
+                    visible_centers.push((center, src));
+                }
+            }
+
+            // Update solitary edges
+            if initial_count >= 2 && visible_centers.len() == 1 {
+                let (center, start) = visible_centers[0];
+                let end = if start == node_a { node_b } else { node_a };
+                self.solitary_edges.push([start, center, end]);
             }
         }
 
