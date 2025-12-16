@@ -294,8 +294,8 @@ impl State {
                 ElementType::Generic(generic_type) => todo!(),
             }
             positions.push([
-                f32::fract(f32::sin(i as f32) * 12345.6789),
-                f32::fract(f32::sin(i as f32) * 98765.4321),
+                f32::fract(f32::sin(i as f32 * 12345.6789)),
+                f32::fract(f32::sin(i as f32 * 98765.4321)),
             ]);
         }
         if positions.len() == 0 {
