@@ -1,3 +1,6 @@
+use rkyv::{Archive, Deserialize, Serialize};
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
 pub enum Characteristic {
     Transitive,
     FunctionalProperty,

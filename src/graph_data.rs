@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 /// Struct containing graph data for WasmGrapher
 #[repr(C)]
-#[derive(Archive, Deserialize, Serialize, PartialEq)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
 pub struct GraphDisplayData {
     /// Labels annotate classes and properties
     ///
@@ -84,7 +84,7 @@ impl GraphDisplayData {
             ElementType::Owl(OwlType::Node(OwlNode::DisjointUnion)),
             ElementType::Owl(OwlType::Node(OwlNode::IntersectionOf)),
             ElementType::Owl(OwlType::Node(OwlNode::UnionOf)),
-            ElementType::Rdfs(RdfsType::Edge(RdfsEdge::Datatype)),
+            ElementType::Rdfs(RdfsType::Node(RdfsNode::Datatype)),
             ElementType::Owl(OwlType::Edge(OwlEdge::ValuesFrom)),
             ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty)),
             ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty)),
