@@ -658,7 +658,7 @@ impl State {
                         NodeShape::Circle { r } => NodeShape::Circle { r: 0.01 },
                         NodeShape::Rectangle { w, h } => NodeShape::Rectangle { w: 0.01, h: 0.01 },
                     }
-                } else {
+                } else if !matches!(elements[center], ElementType::NoDraw) {
                     center_set.insert(key);
                     visible_centers.push((center, src));
                 }
