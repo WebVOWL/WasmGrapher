@@ -7,10 +7,10 @@
 -   Transitive
 -   FunctionalProperty
 -   InverseFunctionalProperty
--   Reflexive
--   Irreflexive
--   Symmetric
--   Asymmetric
+-   ReflexiveProperty
+-   IrreflexiveProperty
+-   SymmetricProperty
+-   AsymmetricProperty
 -   HasKey
 
 # Elements (nodes and edges)

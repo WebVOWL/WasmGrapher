@@ -5,10 +5,10 @@ pub enum Characteristic {
     Transitive,
     FunctionalProperty,
     InverseFunctionalProperty,
-    Reflexive,
-    Irreflexive,
-    Symmetric,
-    Asymmetric,
+    ReflexiveProperty,
+    IrreflexiveProperty,
+    SymmetricProperty,
+    AsymmetricProperty,
     HasKey,
 }
 
@@ -18,10 +18,10 @@ impl std::fmt::Display for Characteristic {
             Characteristic::Transitive => write!(f, "transitive"),
             Characteristic::FunctionalProperty => write!(f, "functional"),
             Characteristic::InverseFunctionalProperty => write!(f, "inverse functional"),
-            Characteristic::Reflexive => write!(f, "reflexive"),
-            Characteristic::Irreflexive => write!(f, "irreflexive"),
-            Characteristic::Symmetric => write!(f, "symmetric"),
-            Characteristic::Asymmetric => write!(f, "asymmetric"),
+            Characteristic::ReflexiveProperty => write!(f, "reflexive"),
+            Characteristic::IrreflexiveProperty => write!(f, "irreflexive"),
+            Characteristic::SymmetricProperty => write!(f, "symmetric"),
+            Characteristic::AsymmetricProperty => write!(f, "asymmetric"),
             Characteristic::HasKey => write!(f, "key"),
         }
     }
