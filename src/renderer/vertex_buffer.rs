@@ -230,13 +230,19 @@ pub fn build_line_and_arrow_vertices(
             ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf)) => 1,
             ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)) => 2,
             ElementType::Owl(OwlType::Edge(OwlEdge::ValuesFrom)) => 3,
-            _ => match elements[start_idx] {
+            _ => match elements[end_idx] {
                 ElementType::Owl(OwlType::Node(node)) => match node {
                     OwlNode::UnionOf
                     | OwlNode::DisjointUnion
                     | OwlNode::Complement
                     | OwlNode::IntersectionOf => 4,
-                    _ => 0,
+                    _ => {
+                        if matches!(elements[center_idx], ElementType::NoDraw) {
+                            continue;
+                        } else {
+                            0
+                        }
+                    }
                 },
                 _ => 0,
             },
