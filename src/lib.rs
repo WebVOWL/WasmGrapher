@@ -17,6 +17,8 @@ pub use app::run;
 /// Exports all the core types of the library.
 pub mod prelude {
     use crate::event_dispatcher::EventDispatcher;
+    use std::sync::LazyLock;
+
     pub use crate::graph_data::GraphDisplayData;
     pub use crate::renderer::elements::{
         characteristic::Characteristic, element_type::ElementType, generic::*, owl::*, rdf::*,
@@ -28,7 +30,9 @@ pub mod prelude {
         Damping, DeltaTime, FreezeThreshold, GravityForce, QuadTreeTheta, RepelForce,
         SpringNeutralLength, SpringStiffness,
     };
-    use std::sync::LazyLock;
+
+    // Re-export strum's IntoEnumIterator
+    pub use strum::IntoEnumIterator;
 
     /// The global event handler for WasmGrapher.
     pub static EVENT_DISPATCHER: LazyLock<EventDispatcher> =
