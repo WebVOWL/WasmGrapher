@@ -1,6 +1,6 @@
-use std::fmt::Display;
-
 use rkyv::{Archive, Deserialize, Serialize};
+use std::fmt::Display;
+use strum::EnumIter;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
 pub enum RdfType {
@@ -11,7 +11,7 @@ pub enum RdfType {
 // #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
 // pub enum RdfNode {}
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
 pub enum RdfEdge {
     RdfProperty,
 }

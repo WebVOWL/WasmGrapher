@@ -1,6 +1,6 @@
-use std::fmt::{Display, write};
-
 use rkyv::{Archive, Deserialize, Serialize};
+use std::fmt::{Display, write};
+use strum::EnumIter;
 
 // TODO: Expand with OWL 2
 
@@ -9,7 +9,7 @@ pub enum OwlType {
     Node(OwlNode),
     Edge(OwlEdge),
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
 pub enum OwlNode {
     AnonymousClass,
     Class,
@@ -57,7 +57,7 @@ impl Display for OwlNode {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
 pub enum OwlEdge {
     DatatypeProperty,
     DisjointWith,

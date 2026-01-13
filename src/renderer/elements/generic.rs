@@ -1,13 +1,13 @@
-use std::fmt::Display;
-
 use rkyv::{Archive, Deserialize, Serialize};
+use std::fmt::Display;
+use strum::EnumIter;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
 pub enum GenericType {
     Node(GenericNode),
     Edge(GenericEdge),
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
 pub enum GenericNode {
     Generic,
 }
@@ -28,7 +28,7 @@ impl Display for GenericNode {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
 pub enum GenericEdge {
     Generic,
 }

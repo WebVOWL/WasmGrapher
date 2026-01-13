@@ -1,6 +1,6 @@
-use std::fmt::Display;
-
 use rkyv::{Archive, Deserialize, Serialize};
+use std::fmt::Display;
+use strum::EnumIter;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
 pub enum RdfsType {
@@ -8,7 +8,7 @@ pub enum RdfsType {
     Edge(RdfsEdge),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
 pub enum RdfsNode {
     Class,
     Literal,
@@ -38,7 +38,7 @@ impl Display for RdfsNode {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
 pub enum RdfsEdge {
     SubclassOf,
 }
