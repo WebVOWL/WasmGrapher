@@ -35,8 +35,7 @@
     log="0.4.0"
     rayon="1.10.0"
     rkyv="0.8.12"
-    strum="0.27"
-    strum_macros="0.27"
+    strum={version="0.27", features=["derive"]}
     web-time="1.1.0"
     wgpu={version="27.0.1", default-features=false, features=[
         "wgsl",
