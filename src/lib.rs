@@ -31,8 +31,8 @@ pub mod prelude {
         SpringNeutralLength, SpringStiffness,
     };
 
-    // Re-export strum's IntoEnumIterator
-    pub use strum::IntoEnumIterator;
+    // Re-export strum
+    pub use strum;
 
     /// The global event handler for WasmGrapher.
     pub static EVENT_DISPATCHER: LazyLock<EventDispatcher> =
