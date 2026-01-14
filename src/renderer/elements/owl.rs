@@ -9,7 +9,20 @@ pub enum OwlType {
     Node(OwlNode),
     Edge(OwlEdge),
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Archive,
+    Deserialize,
+    Serialize,
+    EnumIter,
+    strum::Display,
+)]
+#[strum(serialize_all = "title_case")]
 pub enum OwlNode {
     AnonymousClass,
     Class,
@@ -40,24 +53,20 @@ impl From<OwlNode> for u32 {
     }
 }
 
-impl Display for OwlNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OwlNode::AnonymousClass => write!(f, "Anonymous Class"),
-            OwlNode::Class => write!(f, "Class"),
-            OwlNode::Complement => write!(f, "Complement"),
-            OwlNode::DeprecatedClass => write!(f, "Deprecated Class"),
-            OwlNode::ExternalClass => write!(f, "External Class"),
-            OwlNode::EquivalentClass => write!(f, "Equivalent Class"),
-            OwlNode::DisjointUnion => write!(f, "Disjoint Union"),
-            OwlNode::IntersectionOf => write!(f, "Intersection Of"),
-            OwlNode::Thing => write!(f, "Thing"),
-            OwlNode::UnionOf => write!(f, "Union Of"),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Archive,
+    Deserialize,
+    Serialize,
+    EnumIter,
+    strum::Display,
+)]
+#[strum(serialize_all = "title_case")]
 pub enum OwlEdge {
     DatatypeProperty,
     DisjointWith,
@@ -78,20 +87,6 @@ impl From<OwlEdge> for u32 {
             OwlEdge::InverseOf => 35004,
             OwlEdge::ObjectProperty => 35005,
             OwlEdge::ValuesFrom => 35006,
-        }
-    }
-}
-
-impl Display for OwlEdge {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OwlEdge::DatatypeProperty => write!(f, "Datatype Property"),
-            OwlEdge::DisjointWith => write!(f, "Disjoint With"),
-            OwlEdge::DeprecatedProperty => write!(f, "Deprecated Property"),
-            OwlEdge::ExternalProperty => write!(f, "External Property"),
-            OwlEdge::InverseOf => write!(f, "Inverse Of"),
-            OwlEdge::ObjectProperty => write!(f, "Object Property"),
-            OwlEdge::ValuesFrom => write!(f, "Values From"),
         }
     }
 }

@@ -8,10 +8,25 @@ pub enum RdfsType {
     Edge(RdfsEdge),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Archive,
+    Deserialize,
+    Serialize,
+    EnumIter,
+    strum::Display,
+)]
+#[strum(serialize_all = "title_case")]
 pub enum RdfsNode {
+    #[strum(serialize = "RDFS Class")]
     Class,
     Literal,
+    #[strum(serialize = "RDFS Resource")]
     Resource,
     Datatype,
 }
@@ -27,18 +42,20 @@ impl From<RdfsNode> for u32 {
     }
 }
 
-impl Display for RdfsNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RdfsNode::Class => write!(f, "RDFS Class"),
-            RdfsNode::Literal => write!(f, "Literal"),
-            RdfsNode::Resource => write!(f, "Resource"),
-            RdfsNode::Datatype => write!(f, "Datatype"),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Archive,
+    Deserialize,
+    Serialize,
+    EnumIter,
+    strum::Display,
+)]
+#[strum(serialize_all = "title_case")]
 pub enum RdfsEdge {
     SubclassOf,
 }
@@ -47,14 +64,6 @@ impl From<RdfsEdge> for u32 {
     fn from(value: RdfsEdge) -> Self {
         match value {
             RdfsEdge::SubclassOf => 25000,
-        }
-    }
-}
-
-impl Display for RdfsEdge {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RdfsEdge::SubclassOf => write!(f, "Subclass Of"),
         }
     }
 }

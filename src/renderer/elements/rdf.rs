@@ -11,8 +11,22 @@ pub enum RdfType {
 // #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
 // pub enum RdfNode {}
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize, EnumIter)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Archive,
+    Deserialize,
+    Serialize,
+    EnumIter,
+    strum::Display,
+)]
+#[strum(serialize_all = "title_case")]
 pub enum RdfEdge {
+    #[strum(serialize = "is a")]
     RdfProperty,
 }
 
@@ -20,14 +34,6 @@ impl From<RdfEdge> for u32 {
     fn from(value: RdfEdge) -> Self {
         match value {
             RdfEdge::RdfProperty => 15000,
-        }
-    }
-}
-
-impl Display for RdfEdge {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RdfEdge::RdfProperty => write!(f, "is a"),
         }
     }
 }
