@@ -18,7 +18,7 @@ pub enum ElementType {
 impl Display for ElementType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ElementType::NoDraw => write!(f, ""),
+            ElementType::NoDraw => write!(f, "NoDraw"),
             // ElementType::Rdf(RdfType::Node(node)) => match node {},
             ElementType::Rdf(RdfType::Edge(edge)) => edge.fmt(f),
             ElementType::Rdfs(RdfsType::Node(node)) => node.fmt(f),
