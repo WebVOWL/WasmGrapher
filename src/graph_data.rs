@@ -91,7 +91,7 @@ impl GraphDisplayData {
             ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf)),
             ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)),
             ElementType::Rdf(RdfType::Edge(RdfEdge::RdfProperty)),
-            ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty)),
+            ElementType::Owl(OwlType::Edge(OwlEdge::DeprecatedProperty)),
             ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty)),
             ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
             ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)),
