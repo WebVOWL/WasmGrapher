@@ -161,7 +161,7 @@ impl State {
                     wgpu::Limits::downlevel_webgl2_defaults()
                 } else {
                     wgpu::Limits {
-                        max_buffer_size: 2 << 31,
+                        max_buffer_size: 1073741824,
                         ..Default::default()
                     }
                 },
