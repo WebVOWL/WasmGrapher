@@ -160,10 +160,7 @@ impl State {
                 required_limits: if cfg!(target_arch = "wasm32") && !is_webgpu_enabled {
                     wgpu::Limits::downlevel_webgl2_defaults()
                 } else {
-                    wgpu::Limits {
-                        max_buffer_size: 2 << 31,
-                        ..Default::default()
-                    }
+                    wgpu::Limits::default()
                 },
                 memory_hints: Default::default(),
                 trace: wgpu::Trace::Off,
