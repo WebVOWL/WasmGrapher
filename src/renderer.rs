@@ -2256,7 +2256,7 @@ impl State {
     pub fn handle_scroll(&mut self, delta: MouseScrollDelta) {
         let scroll_amount = match delta {
             MouseScrollDelta::LineDelta(_, y) => y,
-            MouseScrollDelta::PixelDelta(PhysicalPosition { y, .. }) => (y / 10.0) as f32, // Heuristic
+            MouseScrollDelta::PixelDelta(PhysicalPosition { y, .. }) => (y / 10.0) as f32,
         };
         if scroll_amount == 0.0 {
             return;
@@ -2271,9 +2271,14 @@ impl State {
         let world_pos_before = self.screen_to_world(cursor_pos_screen);
 
         // 2. Calculate new zoom
-        let zoom_sensitivity = 0.05;
-        self.zoom *= 1.0 - -scroll_amount * zoom_sensitivity; // scroll down = zoom in
-        self.zoom = self.zoom.clamp(0.05, 4.0); // Min/max zoom levels
+        let zoom_sensitivity = 0.025;
+        let zoom_factor = if scroll_amount > 0.0 {
+            1.0 + scroll_amount * zoom_sensitivity
+        } else {
+            1.0 / (1.0 + (-scroll_amount) * zoom_sensitivity)
+        };
+        self.zoom *= zoom_factor;
+        self.zoom = self.zoom.clamp(0.05, 4.0);
 
         // 3. We want the world_pos_before to stay at cursor_pos_screen.
         //    Find the new pan that makes this true.
