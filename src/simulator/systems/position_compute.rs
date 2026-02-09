@@ -22,13 +22,15 @@ pub fn distance(mut data: DistanceSystemData) {
     for (entity, circle, mass) in (&*data.entities, &data.positions, &data.masses).join() {
         let node_radius: f32 = 48.0 * mass.0;
 
-        let d = (data.cursor_position.0.x - circle.0.x).powi(2)
-            + (data.cursor_position.0.y - circle.0.y).powi(2);
+        let d = (data.cursor_position.0.x - circle.0.x).mul_add(
+            data.cursor_position.0.x - circle.0.x,
+            (data.cursor_position.0.y - circle.0.y).powi(2),
+        );
 
         if d < node_radius.powi(2) {
             // This node contains the cursor's position.
             // It is the node being dragged.
-            data.intersection.0 = entity.id() as i64;
+            data.intersection.0 = i64::from(entity.id());
 
             // info!(
             //     "Point {0} intersect [{1}]",

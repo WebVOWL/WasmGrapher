@@ -32,8 +32,8 @@ impl ComputeNodeForce {
         let force = dir_vec_normalized * f;
 
         force.clamp(
-            Vec2::new(-100000.0, -100000.0),
-            Vec2::new(100000.0, 100000.0),
+            Vec2::new(-100_000.0, -100_000.0),
+            Vec2::new(100_000.0, 100_000.0),
         )
     }
 }
@@ -68,7 +68,7 @@ impl<'a> System<'a> for ComputeNodeForce {
                     return;
                 }
 
-                let node_approximations = quadtree.stack(&pos.0, theta.0);
+                let node_approximations = quadtree.stack(pos.0, theta.0);
 
                 node_forces.0 = Vec2::ZERO;
 
@@ -197,36 +197,30 @@ impl<'a> System<'a> for ComputeEdgeForces {
 
         let force_updates: Vec<(specs::Entity, Vec2)> = (&entities, &positions, &connections)
             .par_join()
-            .fold(
-                || Vec::new(),
-                |mut acc, (entity, pos, connects)| {
-                    let rb1 = entity;
-                    for rb2 in &connects.targets {
-                        // Look up the neighbor's position
-                        if let Some(pos2_comp) = positions_storage.get(*rb2) {
-                            let pos2 = pos2_comp.0;
-                            let direction_vec = pos2 - pos.0;
+            .fold(Vec::new, |mut acc, (entity, pos, connects)| {
+                let rb1 = entity;
+                for rb2 in &connects.targets {
+                    // Look up the neighbor's position
+                    if let Some(pos2_comp) = positions_storage.get(*rb2) {
+                        let pos2 = pos2_comp.0;
+                        let direction_vec = pos2 - pos.0;
 
-                            let force_magnitude = spring_stiffness.0
-                                * (direction_vec.length() - spring_neutral_length.0);
+                        let force_magnitude =
+                            spring_stiffness.0 * (direction_vec.length() - spring_neutral_length.0);
 
-                            let spring_force =
-                                direction_vec.normalize_or(Vec2::ZERO) * -force_magnitude;
+                        let spring_force =
+                            direction_vec.normalize_or(Vec2::ZERO) * -force_magnitude;
 
-                            acc.push((rb1, -spring_force));
-                            acc.push((*rb2, spring_force));
-                        }
+                        acc.push((rb1, -spring_force));
+                        acc.push((*rb2, spring_force));
                     }
-                    acc
-                },
-            )
-            .reduce(
-                || Vec::new(),
-                |mut a, b| {
-                    a.extend(b);
-                    a
-                },
-            );
+                }
+                acc
+            })
+            .reduce(Vec::new, |mut a, b| {
+                a.extend(b);
+                a
+            });
 
         for (entity, force_vec) in force_updates {
             if let Some(force_comp) = forces.get_mut(entity) {

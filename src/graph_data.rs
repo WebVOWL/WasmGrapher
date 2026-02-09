@@ -2,9 +2,9 @@ pub use crate::renderer::elements::{element_type::ElementType, owl::*, rdf::*, r
 use rkyv::{Archive, Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Struct containing graph data for WasmGrapher
+/// Struct containing graph data for grapher
 #[repr(C)]
-#[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Default)]
 pub struct GraphDisplayData {
     /// Labels annotate classes and properties
     ///
@@ -37,10 +37,12 @@ pub struct GraphDisplayData {
 }
 
 impl GraphDisplayData {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn demo() -> Self {
         let labels = vec![
             String::from("My class"),
@@ -123,24 +125,12 @@ impl GraphDisplayData {
         characteristics.insert(21, "transitive".to_string());
         characteristics.insert(23, "functional\ninverse functional".to_string());
 
-        GraphDisplayData {
+        Self {
             labels,
             elements,
             edges,
             cardinalities,
             characteristics,
-        }
-    }
-}
-
-impl Default for GraphDisplayData {
-    fn default() -> Self {
-        Self {
-            labels: Vec::new(),
-            elements: Vec::new(),
-            edges: Vec::new(),
-            cardinalities: Vec::new(),
-            characteristics: HashMap::new(),
         }
     }
 }
@@ -163,7 +153,7 @@ impl std::fmt::Display for GraphDisplayData {
             self.elements
                 .iter()
                 .enumerate()
-                .map(|(i, element)| format!("[{i}] {}", element.to_string()))
+                .map(|(i, element)| format!("[{i}] {element}"))
                 .collect::<Vec<_>>()
         )?;
         writeln!(
@@ -171,7 +161,7 @@ impl std::fmt::Display for GraphDisplayData {
             "\tedges: {:#?}",
             self.edges
                 .iter()
-                .map(|edge| format!("{:?}", edge))
+                .map(|edge| format!("{edge:?}"))
                 .collect::<Vec<_>>()
         )?;
         writeln!(f, "\tcardinalities: {:?}", self.cardinalities)?;
