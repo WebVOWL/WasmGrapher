@@ -34,7 +34,6 @@ pub mod prelude {
     // Re-export strum
     pub use strum;
 
-    /// The global event handler for WasmGrapher.
-    pub static EVENT_DISPATCHER: LazyLock<EventDispatcher> =
-        LazyLock::new(|| EventDispatcher::new());
+    /// The global event handler
+    pub static EVENT_DISPATCHER: LazyLock<EventDispatcher> = LazyLock::new(EventDispatcher::new);
 }

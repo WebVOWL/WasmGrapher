@@ -12,15 +12,15 @@ pub struct BoundingBox2D {
 }
 
 impl BoundingBox2D {
-    pub fn new(center: Vec2, width: f32, height: f32) -> Self {
+    pub const fn new(center: Vec2, width: f32, height: f32) -> Self {
         Self {
             center,
             width,
             height,
         }
     }
-    ///
-    pub fn section(&self, loc: &Vec2) -> u8 {
+
+    pub fn section(&self, loc: Vec2) -> u8 {
         let mut section = 0x00;
 
         if loc[1] > self.center[1] {
@@ -69,33 +69,37 @@ pub enum Node {
 }
 
 impl Node {
-    fn new_leaf(pos: Vec2, mass: f32) -> Self {
+    #[must_use]
+    const fn new_leaf(pos: Vec2, mass: f32) -> Self {
         Self::Leaf { mass, pos }
     }
-    fn new_root(pos: Vec2, mass: f32, indices: [u32; 4]) -> Self {
+    #[must_use]
+    const fn new_root(pos: Vec2, mass: f32, indices: [u32; 4]) -> Self {
         Self::Root { indices, mass, pos }
     }
-    #[allow(dead_code)]
-    pub fn is_leaf(&self) -> bool {
-        matches!(self, Node::Leaf { .. })
+
+    #[must_use]
+    pub const fn is_leaf(&self) -> bool {
+        matches!(self, Self::Leaf { .. })
     }
 
-    #[allow(dead_code)]
-    pub fn is_root(&self) -> bool {
-        matches!(self, Node::Root { .. })
+    #[must_use]
+    pub const fn is_root(&self) -> bool {
+        matches!(self, Self::Root { .. })
     }
 
+    #[must_use]
     pub fn position(&self) -> Vec2 {
         match self {
-            Node::Root { pos, mass, .. } => pos / mass,
-            Node::Leaf { pos, .. } => *pos,
+            Self::Root { pos, mass, .. } => pos / mass,
+            Self::Leaf { pos, .. } => *pos,
         }
     }
 
-    pub fn mass(&self) -> f32 {
+    #[must_use]
+    pub const fn mass(&self) -> f32 {
         match self {
-            Node::Root { mass, .. } => *mass,
-            Node::Leaf { mass, .. } => *mass,
+            Self::Root { mass, .. } | Self::Leaf { mass, .. } => *mass,
         }
     }
 }
@@ -108,7 +112,8 @@ pub struct QuadTree {
 }
 
 impl QuadTree {
-    pub fn new(boundary: BoundingBox2D) -> Self {
+    #[must_use]
+    pub const fn new(boundary: BoundingBox2D) -> Self {
         Self {
             root: 0,
             boundary,
@@ -116,6 +121,7 @@ impl QuadTree {
         }
     }
 
+    #[must_use]
     pub fn with_capacity(boundary: BoundingBox2D, capacity: usize) -> Self {
         Self {
             root: 0,
@@ -143,7 +149,7 @@ impl QuadTree {
             *mass += new_mass;
             *pos += new_pos * new_mass;
 
-            let section = bb.section(&new_pos);
+            let section = bb.section(new_pos);
             // If section not set: create new leaf and exit
             if indices[section as usize] == u32::MAX {
                 indices[section as usize] = new_index;
@@ -156,12 +162,12 @@ impl QuadTree {
 
         // if new leaf is too close to current leaf we merge
         // TODO: in this case we will have a "dead" leaf
-        if let Node::Leaf { mass, pos } = self.children[root_index as usize] {
-            if pos.distance(new_pos) < EPSILON {
-                let m: f32 = mass + new_mass;
-                self.children[root_index as usize] = Node::new_leaf(pos, m);
-                return;
-            }
+        if let Node::Leaf { mass, pos } = self.children[root_index as usize]
+            && pos.distance(new_pos) < EPSILON
+        {
+            let m: f32 = mass + new_mass;
+            self.children[root_index as usize] = Node::new_leaf(pos, m);
+            return;
         }
 
         // create new root until leaf and new leaf are in different sections
@@ -172,11 +178,11 @@ impl QuadTree {
             let old_node = Node::new_leaf(pos, mass);
             self.children.push(old_node);
             let old_index = self.children.len() - 1;
-            let section = bb.section(&pos);
+            let section = bb.section(pos);
             let mut ind = [u32::MAX, u32::MAX, u32::MAX, u32::MAX];
             ind[section as usize] = old_index as u32;
 
-            let section = bb.section(&new_pos);
+            let section = bb.section(new_pos);
 
             // If section of the new root is empty we can set it and exit
             if ind[section as usize] == u32::MAX {
@@ -199,7 +205,11 @@ impl QuadTree {
     }
 
     /// Barnes-Hut algorithm
-    pub fn stack<'a>(&'a self, position: &Vec2, theta: f32) -> Vec<&'a Node> {
+    pub fn stack(&self, position: Vec2, theta: f32) -> Vec<&Node> {
+        #[expect(
+            clippy::cast_sign_loss,
+            reason = "log cannot be negative as length is integer"
+        )]
         let mut nodes: Vec<&Node> =
             Vec::with_capacity((self.children.len() as f32).log2() as usize);
 
@@ -217,10 +227,11 @@ impl QuadTree {
 
                 if let Node::Root { indices, .. } = parent {
                     let center_mass = parent.position();
-                    let dist = center_mass.distance(*position);
+                    let dist = center_mass.distance(position);
                     if s / dist < theta {
+                        // PERF: i don't trust this
                         if nodes.capacity() == nodes.len() {
-                            nodes.reserve((nodes.len() as f32 * 0.1) as usize);
+                            nodes.reserve(nodes.len() / 10);
                         }
                         nodes.push(parent);
                     } else {
@@ -234,7 +245,8 @@ impl QuadTree {
 
                 if let Node::Leaf { .. } = parent {
                     if nodes.capacity() == nodes.len() {
-                        nodes.reserve((nodes.len() as f32 * 0.1) as usize);
+                        // PERF: i don't trust this
+                        nodes.reserve(nodes.len() / 10);
                     }
                     nodes.push(parent);
                 }
@@ -257,10 +269,10 @@ mod test {
     #[test]
     fn test_bounding_box_section() {
         let bb: BoundingBox2D = BoundingBox2D::new(Vec2::ZERO, 10.0, 10.0);
-        assert_eq!(bb.section(&Vec2::new(-1.0, -1.0)), 0);
-        assert_eq!(bb.section(&Vec2::new(1.0, -1.0)), 1);
-        assert_eq!(bb.section(&Vec2::new(-1.0, 1.0)), 2);
-        assert_eq!(bb.section(&Vec2::new(1.0, 1.0)), 3);
+        assert_eq!(bb.section(Vec2::new(-1.0, -1.0)), 0);
+        assert_eq!(bb.section(Vec2::new(1.0, -1.0)), 1);
+        assert_eq!(bb.section(Vec2::new(-1.0, 1.0)), 2);
+        assert_eq!(bb.section(Vec2::new(1.0, 1.0)), 3);
     }
 
     #[test]
@@ -285,14 +297,16 @@ mod test {
     }
 
     #[test]
+    #[expect(clippy::float_cmp)]
     fn test_quadtree_insert() {
         let mut qt: QuadTree = QuadTree::new(BoundingBox2D::new(Vec2::ZERO, 10.0, 10.0));
         // Insert first node
         let n1_mass = 5.0;
         qt.insert(Vec2::new(-1.0, -1.0), n1_mass);
-        assert!(qt.children[0].is_leaf());
         if let Node::Leaf { mass, .. } = qt.children[0] {
             assert_eq!(mass, n1_mass);
+        } else {
+            panic!("New node should be leaf")
         }
 
         // Insert second node in in the same quadrant but different sub quadrant

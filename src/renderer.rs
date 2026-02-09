@@ -9,8 +9,12 @@ use crate::{
     quadtree::QuadTree,
     renderer::{
         elements::{
-            characteristic::Characteristic, element_type::ElementType, generic::*, owl::*, rdf::*,
-            rdfs::*,
+            characteristic::Characteristic,
+            element_type::ElementType,
+            generic::*,
+            owl::{OwlEdge, OwlNode, OwlType},
+            rdf::{RdfEdge, RdfType},
+            rdfs::{RdfsEdge, RdfsNode, RdfsType},
         },
         events::RenderEvent,
         node_shape::NodeShape,
@@ -46,6 +50,10 @@ pub struct RadialMenuState {
     pub menu_buffers: Option<[GlyphBuffer; 2]>,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "i agree, but refactoring seems like a lot of effort"
+)]
 pub struct State {
     // #[cfg(target_arch = "wasm32")]
     surface: wgpu::Surface<'static>,
@@ -112,6 +120,7 @@ pub struct State {
     radial_menu_pipeline: wgpu::RenderPipeline,
     radial_menu_bind_group: wgpu::BindGroup,
     radial_menu_uniform_buffer: wgpu::Buffer,
+    #[expect(clippy::struct_field_names)]
     radial_menu_state: RadialMenuState,
 }
 
@@ -136,11 +145,11 @@ impl State {
 
         // The instance is a handle to our GPU
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: backends,
+            backends,
             ..Default::default()
         });
 
-        let surface = instance.create_surface(window.clone()).unwrap();
+        let surface = instance.create_surface(window.clone())?;
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -161,11 +170,11 @@ impl State {
                     wgpu::Limits::downlevel_webgl2_defaults()
                 } else {
                     wgpu::Limits {
-                        max_buffer_size: 1073741824,
+                        max_buffer_size: 1_073_741_824,
                         ..Default::default()
                     }
                 },
-                memory_hints: Default::default(),
+                memory_hints: wgpu::MemoryHints::default(),
                 trace: wgpu::Trace::Off,
                 experimental_features: wgpu::ExperimentalFeatures::disabled(),
             })
@@ -297,21 +306,21 @@ impl State {
                 ElementType::Generic(generic_type) => todo!(),
             }
             positions.push([
-                f32::fract(f32::sin(i as f32 * 12345.6789)),
-                f32::fract(f32::sin(i as f32 * 98765.4321)),
+                f32::fract(f32::sin(i as f32 * 12_345.679)),
+                f32::fract(f32::sin(i as f32 * 98_765.43)),
             ]);
         }
-        if positions.len() == 0 {
+        if positions.is_empty() {
             positions.push([0.0, 0.0]);
-            labels.push("".to_string());
+            labels.push(String::new());
             node_shapes.push(NodeShape::Circle { r: 0.0 });
             elements.push(ElementType::NoDraw);
         }
 
-        let edges = if graph.edges.len() > 0 {
-            graph.edges
-        } else {
+        let edges = if graph.edges.is_empty() {
             vec![[0, 0, 0]]
+        } else {
+            graph.edges
         };
 
         let cardinalities = graph.cardinalities;
@@ -325,21 +334,21 @@ impl State {
             )));
         font_system.db_mut().set_sans_serif_family("DejaVu Sans");
 
-        let mut node_shapes = node_shapes;
-        let mut labels = labels;
-
         // iterate over labels and update the width of corresponding rectangle nodes
         for (i, label_text) in labels.clone().iter().enumerate() {
             // Set fixed size for disjoint property
-            if let Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) = elements.get(i) {
-                node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
-                labels[i] = String::new();
-                continue;
-            }
-            if let Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))) = elements.get(i) {
-                node_shapes[i] = NodeShape::Rectangle { w: 1.0, h: 1.0 };
-                labels[i] = String::new();
-                continue;
+            match elements.get(i) {
+                Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) => {
+                    node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
+                    labels[i] = String::new();
+                    continue;
+                }
+                Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))) => {
+                    node_shapes[i] = NodeShape::Rectangle { w: 1.0, h: 1.0 };
+                    labels[i] = String::new();
+                    continue;
+                }
+                _ => (),
             }
             // check if the node is a rectangle and get a mutable reference to its properties
             if label_text.is_empty() {
@@ -353,7 +362,7 @@ impl State {
 
             temp_buffer.set_text(
                 &mut font_system,
-                &label_text,
+                label_text,
                 &Attrs::new(),
                 Shaping::Advanced,
             );
@@ -380,26 +389,27 @@ impl State {
                     max_lines = 1;
                     capped_width *= 4.0;
                 }
-                Some(NodeShape::Circle { r }) => match elements[i] {
-                    ElementType::Owl(OwlType::Node(node)) => match node {
-                        OwlNode::EquivalentClass => continue,
-                        OwlNode::Complement
-                        | OwlNode::DisjointUnion
-                        | OwlNode::UnionOf
-                        | OwlNode::IntersectionOf => {
-                            max_lines = 1;
-                            capped_width = 79.0 * scale;
+                Some(NodeShape::Circle { r }) => {
+                    if let ElementType::Owl(OwlType::Node(node)) = elements[i] {
+                        match node {
+                            OwlNode::EquivalentClass => continue,
+                            OwlNode::Complement
+                            | OwlNode::DisjointUnion
+                            | OwlNode::UnionOf
+                            | OwlNode::IntersectionOf => {
+                                max_lines = 1;
+                                capped_width = 79.0 * scale;
+                            }
+                            _ => {
+                                max_lines = 2;
+                                capped_width *= (*r).mul_add(2.0, -0.1);
+                            }
                         }
-                        _ => {
-                            max_lines = 2;
-                            capped_width *= *r * 2.0 - 0.1;
-                        }
-                    },
-                    _ => {
+                    } else {
                         max_lines = 2;
-                        capped_width *= *r * 2.0 - 0.1;
+                        capped_width *= (*r).mul_add(2.0, -0.1);
                     }
-                },
+                }
                 None => {}
             }
             let current_text = label_text.clone();
@@ -416,17 +426,13 @@ impl State {
             );
             temp_buffer.shape_until_scroll(&mut font_system, false);
 
-            fn line_count(buffer: &glyphon::Buffer) -> usize {
-                buffer.layout_runs().count()
-            }
-
             if line_count(&temp_buffer) > max_lines {
                 let mut low = 0;
                 let mut high = current_text.len();
                 let mut truncated = current_text.clone();
 
                 while low < high {
-                    let mid = (low + high) / 2;
+                    let mid = usize::midpoint(low, high);
                     let candidate = format!("{}…", &current_text[..mid]);
 
                     temp_buffer.set_text(
@@ -441,7 +447,7 @@ impl State {
                     if lines > max_lines {
                         high = mid;
                     } else {
-                        truncated = candidate.clone();
+                        truncated.clone_from(&candidate);
                         low = mid + 1;
                     }
                 }
@@ -456,7 +462,7 @@ impl State {
             &positions,
             &elements,
             &node_shapes,
-            &hovered_index,
+            hovered_index,
         );
         let num_instances = positions.len() as u32;
 
@@ -540,7 +546,7 @@ impl State {
                 &node_shapes,
                 &elements,
                 1.0,
-                &hovered_index,
+                hovered_index,
             );
 
         let edge_shader =
@@ -633,6 +639,7 @@ impl State {
 
         let mut solitary_edges: Vec<[usize; 3]> = vec![];
         for [start, center, end] in &edges {
+            #[expect(clippy::unwrap_used)]
             let num_neighbors = neighbor_map
                 .get(&(usize::min(*start, *end), usize::max(*start, *end)))
                 .unwrap()
@@ -676,7 +683,7 @@ impl State {
         }
 
         let mut sim_nodes = Vec::with_capacity(positions.len());
-        for pos in positions.iter() {
+        for pos in &positions {
             sim_nodes.push(Vec2::new(pos[0], pos[1]));
         }
 
@@ -694,7 +701,7 @@ impl State {
             }
         }
 
-        let simulator = Simulator::builder().build(sim_nodes, sim_edges, sim_sizes);
+        let simulator = Simulator::builder().build(&sim_nodes, &sim_edges, &sim_sizes);
 
         // Radial menu setup
 
@@ -823,11 +830,11 @@ impl State {
             arrow_pipeline,
             arrow_vertex_buffer,
             num_arrow_vertices,
-            positions: positions.to_vec(),
+            positions: positions.clone(),
             labels,
-            edges: edges.to_vec(),
+            edges,
             solitary_edges,
-            elements: elements.to_vec(),
+            elements: elements.clone(),
             node_shapes,
             cardinalities,
             characteristics,
@@ -890,12 +897,12 @@ impl State {
 
     // Initialize glyphon resources and create one text buffer per node.
     fn init_glyphon(&mut self) {
+        // Embed font bytes into the binary
+        const DEFAULT_FONT_BYTES: &[u8] = include_bytes!("../assets/DejaVuSans.ttf");
+
         if self.font_system.is_some() {
             return; // already initialized
         }
-
-        // Embed font bytes into the binary
-        const DEFAULT_FONT_BYTES: &'static [u8] = include_bytes!("../assets/DejaVuSans.ttf");
 
         let mut font_system = FontSystem::new_with_fonts(core::iter::once(
             glyphon::fontdb::Source::Binary(Arc::new(DEFAULT_FONT_BYTES.to_vec())),
@@ -929,38 +936,35 @@ impl State {
                     };
                     if self.characteristics.contains_key(&i) {
                         height += 24.0;
-                    };
+                    }
                     (w * 85.0 * scale, height * scale)
                 }
                 NodeShape::Circle { r } => {
                     let mut height = match self.elements[i] {
-                        ElementType::Owl(OwlType::Node(node)) => match node {
-                            OwlNode::ExternalClass
-                            | OwlNode::DeprecatedClass
-                            | OwlNode::Complement
-                            | OwlNode::EquivalentClass
-                            | OwlNode::DisjointUnion
-                            | OwlNode::IntersectionOf
-                            | OwlNode::UnionOf => 36.0,
-                            _ => 24.0,
-                        },
-                        ElementType::Owl(OwlType::Edge(edge)) => match edge {
-                            OwlEdge::DisjointWith => 36.0,
-                            _ => 24.0,
-                        },
+                        ElementType::Owl(
+                            OwlType::Node(
+                                OwlNode::ExternalClass
+                                | OwlNode::DeprecatedClass
+                                | OwlNode::Complement
+                                | OwlNode::EquivalentClass
+                                | OwlNode::DisjointUnion
+                                | OwlNode::IntersectionOf
+                                | OwlNode::UnionOf,
+                            )
+                            | OwlType::Edge(OwlEdge::DisjointWith),
+                        ) => 36.0,
                         _ => 24.0,
                     };
                     if self.characteristics.contains_key(&i) {
                         height += 24.0;
-                    };
+                    }
                     let width = match self.elements[i] {
-                        ElementType::Owl(OwlType::Node(node)) => match node {
+                        ElementType::Owl(OwlType::Node(
                             OwlNode::UnionOf
                             | OwlNode::DisjointUnion
                             | OwlNode::Complement
-                            | OwlNode::IntersectionOf => 75.0,
-                            _ => 85.0,
-                        },
+                            | OwlNode::IntersectionOf,
+                        )) => 75.0,
                         _ => 85.0,
                     };
                     (width * scale * r, height * scale)
@@ -974,38 +978,36 @@ impl State {
             let mut owned_spans: Vec<(String, Attrs)> = Vec::new();
             match self.elements[i] {
                 ElementType::NoDraw => {
-                    owned_spans.push(("".to_string(), attrs.clone()));
+                    owned_spans.push((String::new(), attrs.clone()));
                 }
                 ElementType::Owl(OwlType::Node(node)) => {
                     match node {
                         OwlNode::EquivalentClass => {
                             // TODO: Update when handling equivalent classes from ontology
                             let mut parts: Vec<&str> = label.split('\n').collect();
-                            let label1 = parts.get(0).map_or("", |v| *v).to_string();
+                            let label1 = parts.first().map_or("", |v| *v).to_string();
                             let eq_labels = parts.split_off(1);
+                            owned_spans.push((label1, attrs.clone()));
                             if !eq_labels.is_empty() {
-                                owned_spans.push((label1, attrs.clone()));
                                 owned_spans.push(("\n".to_string(), attrs.clone()));
                                 for (idx, eq) in eq_labels.iter().enumerate() {
-                                    let mut s = eq.to_string();
+                                    let mut s = (*eq).to_string();
                                     if idx + 1 < eq_labels.len() {
                                         s.push_str(", ");
                                     }
                                     owned_spans.push((s, attrs.clone()));
                                 }
-                            } else {
-                                owned_spans.push((label1, attrs.clone()));
                             }
                         }
                         OwlNode::ExternalClass => {
-                            owned_spans.push((label.to_string(), attrs.clone()));
+                            owned_spans.push((label.clone(), attrs.clone()));
                             owned_spans.push((
                                 "\n(external)".to_string(),
                                 attrs.clone().metrics(element_metrics),
                             ));
                         }
                         OwlNode::DeprecatedClass => {
-                            owned_spans.push((label.to_string(), attrs.clone()));
+                            owned_spans.push((label.clone(), attrs.clone()));
                             owned_spans.push((
                                 "\n(deprecated)".to_string(),
                                 attrs.clone().metrics(element_metrics),
@@ -1015,46 +1017,46 @@ impl State {
                             owned_spans.push(("Thing".to_string(), attrs.clone()));
                         }
                         OwlNode::Complement => {
-                            owned_spans.push((label.to_string(), attrs.clone()));
+                            owned_spans.push((label.clone(), attrs.clone()));
                             owned_spans.push(("\n\n¬".to_string(), attrs.clone()));
                         }
                         OwlNode::DisjointUnion => {
-                            owned_spans.push((label.to_string(), attrs.clone()));
+                            owned_spans.push((label.clone(), attrs.clone()));
                             owned_spans.push(("\n\n1".to_string(), attrs.clone()));
                         }
                         OwlNode::IntersectionOf => {
-                            owned_spans.push((label.to_string(), attrs.clone()));
+                            owned_spans.push((label.clone(), attrs.clone()));
                             owned_spans.push(("\n\n∩".to_string(), attrs.clone()));
                         }
                         OwlNode::UnionOf => {
-                            owned_spans.push((label.to_string(), attrs.clone()));
+                            owned_spans.push((label.clone(), attrs.clone()));
                             owned_spans.push(("\n\n∪".to_string(), attrs.clone()));
                         }
                         _ => {
-                            owned_spans.push((label.to_string(), attrs.clone()));
+                            owned_spans.push((label.clone(), attrs.clone()));
                         }
                     }
                 }
                 ElementType::Owl(OwlType::Edge(edge)) => match edge {
                     OwlEdge::InverseOf => {
                         if let Some(chs) = self.characteristics.get(&i) {
-                            let (ch1, ch2) = chs.split_once("\n").unwrap_or((chs, ""));
+                            let (ch1, ch2) = chs.split_once('\n').unwrap_or((chs, ""));
                             let labels_vec: Vec<&str> = label.split('\n').collect();
-                            let label1 = labels_vec.get(0).map_or("", |v| *v).to_string();
+                            let label1 = labels_vec.first().map_or("", |v| *v).to_string();
                             owned_spans.push((label1, attrs.clone()));
                             owned_spans.push((
-                                format!("\n({})\n\n", ch1),
+                                format!("\n({ch1})\n\n"),
                                 attrs.clone().metrics(element_metrics),
                             ));
                             let label2 = labels_vec.get(1).map_or("", |v| *v).to_string();
                             owned_spans.push((label2, attrs.clone()));
                             owned_spans.push((
-                                format!("\n({})", ch2),
+                                format!("\n({ch2})"),
                                 attrs.clone().metrics(element_metrics),
                             ));
                         } else {
                             let labels_vec: Vec<&str> = label.split('\n').collect();
-                            let mut label1 = labels_vec.get(0).map_or("", |v| *v).to_string();
+                            let mut label1 = labels_vec.first().map_or("", |v| *v).to_string();
                             label1.push_str("\n\n\n");
                             let label2 = labels_vec.get(1).map_or("", |v| *v).to_string();
                             owned_spans.push((label1, attrs.clone()));
@@ -1062,26 +1064,21 @@ impl State {
                         }
                     }
                     OwlEdge::DisjointWith => {
-                        owned_spans.push((label.to_string(), attrs.clone()));
+                        owned_spans.push((label.clone(), attrs.clone()));
                         owned_spans.push((
                             "\n\n(disjoint)".to_string(),
                             attrs.clone().metrics(element_metrics),
                         ));
                     }
                     _ => {
-                        owned_spans.push((label.to_string(), attrs.clone()));
+                        owned_spans.push((label.clone(), attrs.clone()));
                     }
                 },
-                ElementType::Rdfs(RdfsType::Edge(edge)) => match edge {
-                    RdfsEdge::SubclassOf => {
-                        owned_spans.push(("Subclass of".to_string(), attrs.clone()));
-                    }
-                    _ => {
-                        owned_spans.push((label.to_string(), attrs.clone()));
-                    }
-                },
+                ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf)) => {
+                    owned_spans.push(("Subclass of".to_string(), attrs.clone()));
+                }
                 _ => {
-                    owned_spans.push((label.to_string(), attrs.clone()));
+                    owned_spans.push((label.clone(), attrs.clone()));
                 }
             }
 
@@ -1089,13 +1086,9 @@ impl State {
             if !matches!(
                 self.elements[i],
                 ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
-            ) {
-                if let Some(ch) = self.characteristics.get(&i) {
-                    owned_spans.push((
-                        format!("\n({})", ch),
-                        attrs.clone().metrics(element_metrics),
-                    ));
-                }
+            ) && let Some(ch) = self.characteristics.get(&i)
+            {
+                owned_spans.push((format!("\n({ch})"), attrs.clone().metrics(element_metrics)));
             }
 
             let spans: Vec<(&str, Attrs)> = owned_spans
@@ -1106,7 +1099,7 @@ impl State {
             buf.set_rich_text(
                 &mut font_system,
                 spans,
-                &attrs,
+                attrs,
                 Shaping::Advanced,
                 Some(glyphon::cosmic_text::Align::Center),
             );
@@ -1116,7 +1109,7 @@ impl State {
 
         // cardinalities
         let mut cardinality_buffers: Vec<(usize, GlyphBuffer)> = Vec::new();
-        for (edge_u32, (cardinality_min, cardinality_max)) in self.cardinalities.iter() {
+        for (edge_u32, (cardinality_min, cardinality_max)) in &self.cardinalities {
             let edge_idx = *edge_u32 as usize;
             let font_px = 12.0 * scale;
             let line_px = 12.0 * scale;
@@ -1126,15 +1119,15 @@ impl State {
             buf.set_size(&mut font_system, Some(label_width), Some(label_height));
 
             let attrs = &Attrs::new().family(Family::SansSerif);
-            let cardinality_text = match cardinality_max {
-                Some(max) => format!("{}..{}", cardinality_min, max),
-                None => format!("{}", cardinality_min),
-            };
+            let cardinality_text = cardinality_max.as_ref().map_or_else(
+                || cardinality_min.clone(),
+                |max| format!("{cardinality_min}..{max}"),
+            );
             let spans = vec![(cardinality_text.as_str(), attrs.clone())];
             buf.set_rich_text(
                 &mut font_system,
                 spans,
-                &attrs,
+                attrs,
                 Shaping::Advanced,
                 Some(glyphon::cosmic_text::Align::Center),
             );
@@ -1207,22 +1200,15 @@ impl State {
         }
 
         let scale = self.window.scale_factor() as f32;
-        let vp_h_px = self.config.height as f32 * scale as f32;
-        let vp_w_px = self.config.width as f32 * scale as f32;
+        let vp_h_px = self.config.height as f32 * scale;
+        let vp_w_px = self.config.width as f32 * scale;
 
         // PRE-CALCULATE LAYOUTS
 
         // Radial Menu Layout
-        struct MenuLayout {
-            top_rect: (f32, f32), // left, top
-            bot_rect: (f32, f32), // left, top
-            color_top: Color,
-            color_bot: Color,
-        }
-
         let menu_layout = if self.radial_menu_state.active {
             let menu = &self.radial_menu_state;
-            let radius_mid = (menu.radius_inner + menu.radius_outer) / 2.0;
+            let radius_mid = f32::midpoint(menu.radius_inner, menu.radius_outer);
 
             let world_offset_y = radius_mid;
 
@@ -1248,13 +1234,6 @@ impl State {
             None
         };
 
-        struct LabelLayout {
-            buffer_index: usize,
-            left: f32,
-            top: f32,
-            scale_factor: f32,
-            bounds: TextBounds,
-        }
         let mut node_layouts: Vec<LabelLayout> = Vec::with_capacity(self.positions.len());
 
         if let Some(text_buffers) = self.text_buffers.as_ref() {
@@ -1269,15 +1248,12 @@ impl State {
                     ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)) => {
                         Vec2::new(self.positions[i][0], self.positions[i][1] + 18.0)
                     }
-                    ElementType::Owl(OwlType::Node(node)) => match node {
+                    ElementType::Owl(OwlType::Node(
                         OwlNode::Complement
                         | OwlNode::DisjointUnion
                         | OwlNode::IntersectionOf
-                        | OwlNode::UnionOf => {
-                            Vec2::new(self.positions[i][0], self.positions[i][1] + 24.0)
-                        }
-                        _ => Vec2::new(self.positions[i][0], self.positions[i][1]),
-                    },
+                        | OwlNode::UnionOf,
+                    )) => Vec2::new(self.positions[i][0], self.positions[i][1] + 24.0),
                     _ => Vec2::new(self.positions[i][0], self.positions[i][1]),
                 };
 
@@ -1288,11 +1264,11 @@ impl State {
                     0.0
                 };
                 let node_x_px = screen_pos_logical.x * scale;
-                let node_y_px = screen_pos_logical.y * scale - y_offset;
+                let node_y_px = screen_pos_logical.y.mul_add(scale, -y_offset);
 
                 let (label_w_opt, label_h_opt) = buf.size();
-                let label_w = label_w_opt.unwrap_or(96.0) as f32;
-                let label_h = label_h_opt.unwrap_or(24.0) as f32;
+                let label_w = label_w_opt.unwrap_or(96.0);
+                let label_h = label_h_opt.unwrap_or(24.0);
 
                 let scaled_label_w = label_w * self.zoom;
                 let scaled_label_h = label_h * self.zoom;
@@ -1301,9 +1277,9 @@ impl State {
                 let line_height = 8.0;
                 let top = match self.elements[i] {
                     ElementType::Owl(OwlType::Node(OwlNode::EquivalentClass)) => {
-                        node_y_px - 2.0 * line_height * self.zoom
+                        (2.0f32 * line_height).mul_add(-self.zoom, node_y_px)
                     }
-                    _ => node_y_px - (line_height * scale) * self.zoom,
+                    _ => (line_height * scale).mul_add(-self.zoom, node_y_px),
                 };
 
                 let right = left + scaled_label_w;
@@ -1372,7 +1348,7 @@ impl State {
                             0.0
                         };
 
-                        let len_sq = dir_world_x * dir_world_x + dir_world_y * dir_world_y;
+                        let len_sq = dir_world_x.mul_add(dir_world_x, dir_world_y * dir_world_y);
                         let len_world = len_sq.sqrt().max(1.0);
                         let nx_world = dir_world_x / len_world;
                         let ny_world = dir_world_y / len_world;
@@ -1393,7 +1369,7 @@ impl State {
                     }
                 };
 
-                let len_sq = dir_world_x * dir_world_x + dir_world_y * dir_world_y;
+                let len_sq = dir_world_x.mul_add(dir_world_x, dir_world_y * dir_world_y);
                 let len_world = len_sq.sqrt().max(1.0);
                 let nx_world = dir_world_x / len_world;
                 let ny_world = dir_world_y / len_world;
@@ -1407,8 +1383,8 @@ impl State {
                 let card_y_px = card_screen_phys.y;
 
                 let (label_w_opt, label_h_opt) = buf.size();
-                let label_w = label_w_opt.unwrap_or(48.0) as f32;
-                let label_h = label_h_opt.unwrap_or(24.0) as f32;
+                let label_w = label_w_opt.unwrap_or(48.0);
+                let label_h = label_h_opt.unwrap_or(24.0);
                 let scaled_label_w = label_w * self.zoom;
                 let scaled_label_h = label_h * self.zoom;
 
@@ -1441,62 +1417,66 @@ impl State {
         let mut areas: Vec<TextArea> = Vec::new();
 
         // Radial Menu Areas
-        if let Some((top_screen, bot_screen, c_top, c_bot)) = menu_layout {
-            if let Some(buffers) = &self.radial_menu_state.menu_buffers {
-                // Buffer 0: Freeze (Top)
-                let raw_width_0 = buffers[0]
-                    .layout_runs()
-                    .map(|run| run.line_w)
-                    .fold(0.0, f32::max);
+        if let Some((top_screen, bot_screen, c_top, c_bot)) = menu_layout
+            && let Some(buffers) = &self.radial_menu_state.menu_buffers
+        {
+            // Buffer 0: Freeze (Top)
+            let raw_width_0 = buffers[0]
+                .layout_runs()
+                .map(|run| run.line_w)
+                .fold(0.0, f32::max);
 
-                // Scale text by zoom
-                let text_scale = self.zoom;
+            // Scale text by zoom
+            let text_scale = self.zoom;
 
-                // Calculate centered position
-                let left_0 = top_screen.x * scale - (raw_width_0 * text_scale) / 2.0;
+            // Calculate centered position
+            let left_0 = top_screen
+                .x
+                .mul_add(scale, -((raw_width_0 * text_scale) / 2.0));
 
-                // Move text up slightly to center in the ring sector
-                let top_0 = top_screen.y * scale - (10.0 * scale * text_scale);
+            // Move text up slightly to center in the ring sector
+            let top_0 = top_screen.y.mul_add(scale, -(10.0 * scale * text_scale));
 
-                areas.push(TextArea {
-                    buffer: &buffers[0],
-                    left: left_0,
-                    top: top_0,
-                    scale: text_scale,
-                    bounds: TextBounds {
-                        left: 0,
-                        top: 0,
-                        right: i32::MAX,
-                        bottom: i32::MAX,
-                    },
-                    default_color: c_top,
-                    custom_glyphs: &[],
-                });
+            areas.push(TextArea {
+                buffer: &buffers[0],
+                left: left_0,
+                top: top_0,
+                scale: text_scale,
+                bounds: TextBounds {
+                    left: 0,
+                    top: 0,
+                    right: i32::MAX,
+                    bottom: i32::MAX,
+                },
+                default_color: c_top,
+                custom_glyphs: &[],
+            });
 
-                // Buffer 1: Subgraph (Bottom)
-                let raw_width_1 = buffers[1]
-                    .layout_runs()
-                    .map(|run| run.line_w)
-                    .fold(0.0, f32::max);
+            // Buffer 1: Subgraph (Bottom)
+            let raw_width_1 = buffers[1]
+                .layout_runs()
+                .map(|run| run.line_w)
+                .fold(0.0, f32::max);
 
-                let left_1 = bot_screen.x * scale - (raw_width_1 * text_scale) / 2.0;
-                let top_1 = bot_screen.y * scale - (10.0 * scale * text_scale);
+            let left_1 = bot_screen
+                .x
+                .mul_add(scale, -((raw_width_1 * text_scale) / 2.0));
+            let top_1 = bot_screen.y.mul_add(scale, -(10.0 * scale * text_scale));
 
-                areas.push(TextArea {
-                    buffer: &buffers[1],
-                    left: left_1,
-                    top: top_1,
-                    scale: text_scale,
-                    bounds: TextBounds {
-                        left: 0,
-                        top: 0,
-                        right: i32::MAX,
-                        bottom: i32::MAX,
-                    },
-                    default_color: c_bot,
-                    custom_glyphs: &[],
-                });
-            }
+            areas.push(TextArea {
+                buffer: &buffers[1],
+                left: left_1,
+                top: top_1,
+                scale: text_scale,
+                bounds: TextBounds {
+                    left: 0,
+                    top: 0,
+                    right: i32::MAX,
+                    bottom: i32::MAX,
+                },
+                default_color: c_bot,
+                custom_glyphs: &[],
+            });
         }
 
         // Node Label Areas
@@ -1545,6 +1525,7 @@ impl State {
             self.atlas.as_mut(),
             self.text_renderer.as_mut(),
         ) {
+            #[expect(clippy::cast_sign_loss)]
             viewport.update(
                 &self.queue,
                 Resolution {
@@ -1562,7 +1543,7 @@ impl State {
                 areas,
                 swash_cache,
             ) {
-                log::error!("glyphon prepare failed: {:?}", e);
+                log::error!("glyphon prepare failed: {e:?}");
             }
         }
 
@@ -1617,19 +1598,16 @@ impl State {
             render_pass.set_vertex_buffer(1, self.node_instance_buffer.slice(..));
             render_pass.set_bind_group(0, &self.bind_group0, &[]);
 
-            if self.hovered_index >= 0 {
+            if let Ok(hovered_index) = u32::try_from(self.hovered_index) {
                 // Draw 0..hovered_index
-                render_pass.draw(0..self.num_vertices, 0..self.hovered_index as u32);
+                render_pass.draw(0..self.num_vertices, 0..hovered_index);
                 // Draw (hovered_index+1)..num_instances
                 render_pass.draw(
                     0..self.num_vertices,
-                    (self.hovered_index as u32 + 1)..self.num_instances,
+                    (hovered_index + 1)..self.num_instances,
                 );
                 // Draw hovered node last (on top)
-                render_pass.draw(
-                    0..self.num_vertices,
-                    self.hovered_index as u32..(self.hovered_index as u32 + 1),
-                );
+                render_pass.draw(0..self.num_vertices, hovered_index..(hovered_index + 1));
             } else {
                 // No hover, draw all normally
                 render_pass.draw(0..self.num_vertices, 0..self.num_instances);
@@ -1650,6 +1628,7 @@ impl State {
                 self.viewport.as_ref(),
                 self.text_renderer.as_mut(),
             ) {
+                #[expect(clippy::unwrap_used)]
                 text_renderer
                     .render(atlas, viewport, &mut render_pass)
                     .unwrap();
@@ -1688,8 +1667,8 @@ impl State {
             if *start == *end {
                 continue;
             }
-            let center_x = (self.positions[*start][0] + self.positions[*end][0]) / 2.0;
-            let center_y = (self.positions[*start][1] + self.positions[*end][1]) / 2.0;
+            let center_x = f32::midpoint(self.positions[*start][0], self.positions[*end][0]);
+            let center_y = f32::midpoint(self.positions[*start][1], self.positions[*end][1]);
             self.positions[*center] = [center_x, center_y];
         }
 
@@ -1707,7 +1686,7 @@ impl State {
             &self.positions,
             &self.elements,
             &self.node_shapes,
-            &self.hovered_index,
+            self.hovered_index,
         );
 
         let (edge_vertices, arrow_vertices) = vertex_buffer::build_line_and_arrow_vertices(
@@ -1716,36 +1695,36 @@ impl State {
             &self.node_shapes,
             &self.elements,
             self.zoom,
-            &self.hovered_index,
+            self.hovered_index,
         );
 
         // Update menu hover state
-        if self.radial_menu_state.active {
-            if let Some(cursor) = self.cursor_position {
-                // Determine sector
-                let world_cursor = self.screen_to_world(cursor);
-                let diff = world_cursor - self.radial_menu_state.center_world;
+        if self.radial_menu_state.active
+            && let Some(cursor) = self.cursor_position
+        {
+            // Determine sector
+            let world_cursor = self.screen_to_world(cursor);
+            let diff = world_cursor - self.radial_menu_state.center_world;
 
-                let angle = diff.y.atan2(diff.x);
-                let segment = if angle >= 0.0 { 0 } else { 1 };
+            let angle = diff.y.atan2(diff.x);
+            let segment = i32::from(angle < 0.0);
 
-                // Visual distance check
-                self.radial_menu_state.hovered_segment = segment;
+            // Visual distance check
+            self.radial_menu_state.hovered_segment = segment;
 
-                // Update Uniform
-                let uniforms = MenuUniforms {
-                    center: self.radial_menu_state.center_world.to_array(),
-                    radius_inner: self.radial_menu_state.radius_inner,
-                    radius_outer: self.radial_menu_state.radius_outer,
-                    hovered_segment: segment,
-                    _padding: [0; 7],
-                };
-                self.queue.write_buffer(
-                    &self.radial_menu_uniform_buffer,
-                    0,
-                    bytemuck::cast_slice(&[uniforms]),
-                );
-            }
+            // Update Uniform
+            let uniforms = MenuUniforms {
+                center: self.radial_menu_state.center_world.to_array(),
+                radius_inner: self.radial_menu_state.radius_inner,
+                radius_outer: self.radial_menu_state.radius_outer,
+                hovered_segment: segment,
+                _padding: [0; 7],
+            };
+            self.queue.write_buffer(
+                &self.radial_menu_uniform_buffer,
+                0,
+                bytemuck::cast_slice(&[uniforms]),
+            );
         }
 
         self.queue.write_buffer(
@@ -1788,17 +1767,17 @@ impl State {
     fn load_new_graph(&mut self, graph: GraphDisplayData) {
         self.labels = graph.labels;
         self.elements = graph.elements;
-        self.edges = if graph.edges.len() > 0 {
-            graph.edges
-        } else {
+        self.edges = if graph.edges.is_empty() {
             vec![[0, 0, 0]]
+        } else {
+            graph.edges
         };
         self.cardinalities = graph.cardinalities;
         self.characteristics = graph.characteristics;
 
         // Recalculate Node Shapes
         let mut node_shapes = vec![];
-        for element in self.elements.iter() {
+        for element in &self.elements {
             match element {
                 ElementType::Owl(OwlType::Node(node)) => match node {
                     OwlNode::Class
@@ -1855,7 +1834,7 @@ impl State {
         // Handle empty graph
         if node_shapes.is_empty() {
             self.positions = vec![[0.0, 0.0]];
-            self.labels = vec!["".to_string()];
+            self.labels = vec![String::new()];
             node_shapes.push(NodeShape::Circle { r: 0.0 });
             self.elements.push(ElementType::NoDraw);
         } else {
@@ -1863,8 +1842,8 @@ impl State {
             self.positions = vec![];
             for i in 0..self.elements.len() {
                 self.positions.push([
-                    f32::fract(f32::sin(i as f32) * 12345.6789),
-                    f32::fract(f32::sin(i as f32) * 98765.4321),
+                    f32::fract(f32::sin(i as f32) * 12_345.679),
+                    f32::fract(f32::sin(i as f32) * 98_765.43),
                 ]);
             }
         }
@@ -1878,16 +1857,18 @@ impl State {
             let scale = self.window.scale_factor() as f32;
 
             for (i, label_text) in self.labels.clone().iter().enumerate() {
-                if let Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) =
-                    self.elements.get(i)
-                {
+                if matches!(
+                    self.elements.get(i),
+                    Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)))
+                ) {
                     node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
                     self.labels[i] = String::new();
                     continue;
                 }
-                if let Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))) =
-                    self.elements.get(i)
-                {
+                if matches!(
+                    self.elements.get(i),
+                    Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf)))
+                ) {
                     node_shapes[i] = NodeShape::Rectangle { w: 1.0, h: 1.0 };
                     self.labels[i] = String::new();
                     continue;
@@ -1898,7 +1879,7 @@ impl State {
 
                 let mut temp_buffer =
                     glyphon::Buffer::new(font_system, Metrics::new(12.0 * scale, 12.0 * scale));
-                temp_buffer.set_text(font_system, &label_text, &Attrs::new(), Shaping::Advanced);
+                temp_buffer.set_text(font_system, label_text, &Attrs::new(), Shaping::Advanced);
 
                 let text_width = temp_buffer
                     .layout_runs()
@@ -1921,26 +1902,27 @@ impl State {
                         max_lines = 1;
                         capped_width *= 4.0;
                     }
-                    Some(NodeShape::Circle { r }) => match self.elements[i] {
-                        ElementType::Owl(OwlType::Node(node)) => match node {
-                            OwlNode::EquivalentClass => continue,
-                            OwlNode::Complement
-                            | OwlNode::DisjointUnion
-                            | OwlNode::UnionOf
-                            | OwlNode::IntersectionOf => {
-                                max_lines = 1;
-                                capped_width = 79.0 * scale;
+                    Some(NodeShape::Circle { r }) => {
+                        if let ElementType::Owl(OwlType::Node(node)) = self.elements[i] {
+                            match node {
+                                OwlNode::EquivalentClass => continue,
+                                OwlNode::Complement
+                                | OwlNode::DisjointUnion
+                                | OwlNode::UnionOf
+                                | OwlNode::IntersectionOf => {
+                                    max_lines = 1;
+                                    capped_width = 79.0 * scale;
+                                }
+                                _ => {
+                                    max_lines = 2;
+                                    capped_width *= (*r).mul_add(2.0, -0.1);
+                                }
                             }
-                            _ => {
-                                max_lines = 2;
-                                capped_width *= *r * 2.0 - 0.1;
-                            }
-                        },
-                        _ => {
+                        } else {
                             max_lines = 2;
-                            capped_width *= *r * 2.0 - 0.1;
+                            capped_width *= (*r).mul_add(2.0, -0.1);
                         }
-                    },
+                    }
                     None => {}
                 }
 
@@ -1957,7 +1939,7 @@ impl State {
                     let mut truncated = current_text.clone();
 
                     while low < high {
-                        let mid = (low + high) / 2;
+                        let mid = usize::midpoint(low, high);
                         let candidate = format!("{}…", &current_text[..mid]);
                         temp_buffer.set_text(
                             font_system,
@@ -1969,7 +1951,7 @@ impl State {
                         if temp_buffer.layout_runs().count() > max_lines {
                             high = mid;
                         } else {
-                            truncated = candidate.clone();
+                            truncated.clone_from(&candidate);
                             low = mid + 1;
                         }
                     }
@@ -1987,7 +1969,7 @@ impl State {
             &self.positions,
             &self.elements,
             &self.node_shapes,
-            &self.hovered_index,
+            self.hovered_index,
         );
 
         // Rebuild solitary edges
@@ -2001,6 +1983,7 @@ impl State {
 
         self.solitary_edges = vec![];
         for [start, center, end] in &self.edges {
+            #[expect(clippy::unwrap_used)]
             let num_neighbors = neighbor_map
                 .get(&(usize::min(*start, *end), usize::max(*start, *end)))
                 .unwrap()
@@ -2050,7 +2033,7 @@ impl State {
             &self.node_shapes,
             &self.elements,
             self.zoom,
-            &self.hovered_index,
+            self.hovered_index,
         );
         self.edge_vertex_buffer = edge_vb;
         self.num_edge_vertices = num_edge;
@@ -2059,7 +2042,7 @@ impl State {
 
         // Rebuild simulator
         let mut sim_nodes = Vec::with_capacity(self.positions.len());
-        for pos in self.positions.iter() {
+        for pos in &self.positions {
             sim_nodes.push(Vec2::new(pos[0], pos[1]));
         }
 
@@ -2077,7 +2060,7 @@ impl State {
             }
         }
 
-        self.simulator = Simulator::builder().build(sim_nodes, sim_edges, sim_sizes);
+        self.simulator = Simulator::builder().build(&sim_nodes, &sim_edges, &sim_sizes);
 
         // Regenerate text buffers
         self.text_buffers = None;
@@ -2091,12 +2074,9 @@ impl State {
     }
 
     pub fn handle_key(&mut self, code: KeyCode, is_pressed: bool) {
-        match (code, is_pressed) {
-            (KeyCode::Space, true) => {
-                self.paused = !self.paused;
-                self.window.request_redraw();
-            }
-            _ => {}
+        if (code, is_pressed) == (KeyCode::Space, true) {
+            self.paused = !self.paused;
+            self.window.request_redraw();
         }
     }
 
@@ -2152,15 +2132,15 @@ impl State {
                                 match self.radial_menu_state.hovered_segment {
                                     0 => self.freeze_node(self.radial_menu_state.target_node_index),
                                     1 => {
-                                        self.subgraph_node(self.radial_menu_state.target_node_index)
+                                        self.subgraph_node(
+                                            self.radial_menu_state.target_node_index,
+                                        );
                                     }
                                     _ => {}
                                 }
-                                self.radial_menu_state.active = false;
-                            } else {
-                                // Clicked outside or in the hole -> Close menu
-                                self.radial_menu_state.active = false;
                             }
+                            // Clicked outside or in the hole -> Close menu
+                            self.radial_menu_state.active = false;
 
                             // Return early
                             return;
@@ -2168,8 +2148,12 @@ impl State {
 
                         // Case B: Menu Not Active -> Check for Node Click
                         let hovered = self.update_hover();
-                        if hovered != -1 {
+                        if hovered == -1 {
+                            // Clicked empty space
+                            self.radial_menu_state.active = false;
+                        } else {
                             // Open radial menu
+                            #[expect(clippy::cast_sign_loss, reason = "hovered must be positive")]
                             let idx = hovered as usize;
 
                             // Determine size based on node shape
@@ -2191,9 +2175,6 @@ impl State {
                                 hovered_segment: -1,
                                 menu_buffers: self.radial_menu_state.menu_buffers.clone(),
                             };
-                        } else {
-                            // Clicked empty space
-                            self.radial_menu_state.active = false;
                         }
                     }
                 }
@@ -2202,12 +2183,12 @@ impl State {
             (MouseButton::Right, true) => {
                 // Start panning
 
-                if let Some(pos) = self.cursor_position {
-                    if !self.node_dragged {
-                        self.pan_active = true;
+                if let Some(pos) = self.cursor_position
+                    && !self.node_dragged
+                {
+                    self.pan_active = true;
 
-                        self.last_pan_position = Some(pos);
-                    }
+                    self.last_pan_position = Some(pos);
                 }
             }
 
@@ -2233,23 +2214,23 @@ impl State {
             EVENT_DISPATCHER
                 .sim_write_chan
                 .send(SimulatorEvent::Dragged(pos_world));
-        } else if self.pan_active {
-            if let Some(last_pos_screen) = self.last_pan_position {
-                // 1. Get the world position of the cursor now.
-                let world_pos_current = self.screen_to_world(pos_screen);
+        } else if self.pan_active
+            && let Some(last_pos_screen) = self.last_pan_position
+        {
+            // 1. Get the world position of the cursor now.
+            let world_pos_current = self.screen_to_world(pos_screen);
 
-                // 2. Get the world position of the cursor at its last position.
-                let world_pos_last = self.screen_to_world(last_pos_screen);
+            // 2. Get the world position of the cursor at its last position.
+            let world_pos_last = self.screen_to_world(last_pos_screen);
 
-                // 3. The difference is the true world-space delta.
-                let delta_world = world_pos_current - world_pos_last;
+            // 3. The difference is the true world-space delta.
+            let delta_world = world_pos_current - world_pos_last;
 
-                // 4. Adjust the pan by this delta.
-                self.pan -= delta_world;
+            // 4. Adjust the pan by this delta.
+            self.pan -= delta_world;
 
-                // 5. Update the last position.
-                self.last_pan_position = Some(pos_screen);
-            }
+            // 5. Update the last position.
+            self.last_pan_position = Some(pos_screen);
         }
     }
 
@@ -2262,9 +2243,8 @@ impl State {
             return;
         }
 
-        let cursor_pos_screen = match self.cursor_position {
-            Some(pos) => pos,
-            None => return,
+        let Some(cursor_pos_screen) = self.cursor_position else {
+            return;
         };
 
         // 1. Get world pos under cursor before zoom
@@ -2275,7 +2255,7 @@ impl State {
         let zoom_factor = if scroll_amount > 0.0 {
             1.0 + scroll_amount * zoom_sensitivity
         } else {
-            1.0 / (1.0 + (-scroll_amount) * zoom_sensitivity)
+            1.0 / (-scroll_amount).mul_add(zoom_sensitivity, 1.0)
         };
         self.zoom *= zoom_factor;
         self.zoom = self.zoom.clamp(0.05, 4.0);
@@ -2330,9 +2310,12 @@ impl State {
 
     /// Update hovered node
     fn update_hover(&self) -> i32 {
-        let cursor_pos = match self.cursor_position {
-            Some(pos) => pos,
-            None => return -1,
+        const BASE_RADIUS: f32 = 50.0;
+        const BASE_WIDTH: f32 = 85.0;
+        const BASE_HEIGHT: f32 = 50.0;
+
+        let Some(cursor_pos) = self.cursor_position else {
+            return -1;
         };
 
         if self.node_dragged {
@@ -2341,10 +2324,6 @@ impl State {
 
         // Convert screen pixel coordinates to world coordinates
         let world_pos = self.screen_to_world(cursor_pos);
-
-        const BASE_RADIUS: f32 = 50.0;
-        const BASE_WIDTH: f32 = 85.0;
-        const BASE_HEIGHT: f32 = 50.0;
 
         let mut found_index = -1;
 
@@ -2372,66 +2351,14 @@ impl State {
                 }
             };
 
+            #[expect(clippy::expect_used)]
             if is_hovered {
-                found_index = i as i32;
+                found_index = i32::try_from(i).expect("cast should succeed");
                 break;
             }
         }
 
         found_index
-    }
-
-    fn add_menu_labels_to_areas(
-        &mut self,
-        areas: &mut Vec<TextArea>,
-        font_system: &mut FontSystem,
-    ) {
-        let scale = self.window.scale_factor() as f32;
-        let menu = &self.radial_menu_state;
-
-        // Calculate text positions (World -> Screen)
-        let radius_mid = (menu.radius_inner + menu.radius_outer) / 2.0;
-
-        // Top Label (Freeze)
-        let top_pos_world = menu.center_world + Vec2::new(0.0, radius_mid);
-        let world_offset = radius_mid;
-
-        let top_pos = self.world_to_screen(menu.center_world + Vec2::new(0.0, world_offset));
-        let bot_pos = self.world_to_screen(menu.center_world - Vec2::new(0.0, world_offset));
-
-        let mut create_buf = |text: &str, pos: Vec2, color: Color| {
-            let mut buf = GlyphBuffer::new(font_system, Metrics::new(14.0 * scale, 14.0 * scale));
-            buf.set_text(
-                font_system,
-                text,
-                &Attrs::new()
-                    .family(Family::SansSerif)
-                    .weight(glyphon::Weight::BOLD),
-                Shaping::Advanced,
-            );
-            buf.set_size(font_system, Some(100.0 * scale), None);
-            buf.shape_until_scroll(font_system, false);
-
-            // Center alignment logic
-            let width = buf.layout_runs().map(|run| run.line_w).fold(0.0, f32::max);
-            let left = pos.x * scale - width / 2.0;
-            let top = pos.y * scale - (7.0 * scale); // approx half height
-
-            TextArea {
-                buffer: &buf,
-                left,
-                top,
-                scale: 1.0,
-                bounds: TextBounds {
-                    left: 0,
-                    top: 0,
-                    right: i32::MAX,
-                    bottom: i32::MAX,
-                },
-                default_color: color,
-                custom_glyphs: &[],
-            };
-        };
     }
 
     fn freeze_node(&self, index: usize) {
@@ -2443,4 +2370,22 @@ impl State {
         log::info!("Create Subgraph from Node: {}", self.labels[index]);
         // TODO: Implement subgraph logic
     }
+}
+
+struct MenuLayout {
+    top_rect: (f32, f32), // left, top
+    bot_rect: (f32, f32), // left, top
+    color_top: Color,
+    color_bot: Color,
+}
+struct LabelLayout {
+    buffer_index: usize,
+    left: f32,
+    top: f32,
+    scale_factor: f32,
+    bounds: TextBounds,
+}
+
+fn line_count(buffer: &glyphon::Buffer) -> usize {
+    buffer.layout_runs().count()
 }

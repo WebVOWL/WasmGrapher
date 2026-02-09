@@ -861,7 +861,6 @@ dependencies = [
  "flume",
  "glam",
  "glyphon",
- "grapher-bin",
  "log",
  "pollster",
  "rand",

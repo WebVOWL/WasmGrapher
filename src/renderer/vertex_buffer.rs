@@ -1,7 +1,11 @@
 use wgpu::util::DeviceExt;
 
 use crate::renderer::{
-    elements::{element_type::ElementType, owl::*, rdfs::*},
+    elements::{
+        element_type::ElementType,
+        owl::{OwlEdge, OwlNode, OwlType},
+        rdfs::{RdfsEdge, RdfsType},
+    },
     node_shape::NodeShape,
 };
 
@@ -29,7 +33,7 @@ pub struct Vertex {
 impl Vertex {
     const ATTRIBS: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![0 => Float32x2];
 
-    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+    pub const fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -83,7 +87,7 @@ pub struct MenuUniforms {
 impl NodeInstance {
     const ATTRIBS: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![1 => Float32x2, 2 => Uint32, 3 => Uint32, 4 => Float32x2, 5 => Uint32];
 
-    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+    pub const fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -97,7 +101,7 @@ pub fn build_node_instances(
     positions: &[[f32; 2]],
     elements: &[ElementType],
     node_shapes: &[NodeShape],
-    hovered_index: &i32,
+    hovered_index: i32,
 ) -> Vec<NodeInstance> {
     let mut node_instances: Vec<NodeInstance> = vec![];
     for (i, pos) in positions.iter().enumerate() {
@@ -105,7 +109,8 @@ pub fn build_node_instances(
             NodeShape::Circle { r } => (0, [r, 0.0]),
             NodeShape::Rectangle { w, h } => (1, [w, h]),
         };
-        let hovered = if i as i32 == *hovered_index { 1 } else { 0 };
+        #[expect(clippy::cast_possible_wrap)]
+        let hovered = u32::from(i as i32 == hovered_index);
         node_instances.push(NodeInstance {
             position: *pos,
             node_type: elements[i].into(),
@@ -122,7 +127,7 @@ pub fn create_node_instance_buffer(
     positions: &[[f32; 2]],
     elements: &[ElementType],
     node_shapes: &[NodeShape],
-    hovered_index: &i32,
+    hovered_index: i32,
 ) -> wgpu::Buffer {
     let node_instances = build_node_instances(positions, elements, node_shapes, hovered_index);
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -164,7 +169,7 @@ impl EdgeVertex {
         10 => Uint32,    // hover
     ];
 
-    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+    pub const fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -178,8 +183,8 @@ impl EdgeVertex {
 fn bezier_point(p0: [f32; 2], ctrl: [f32; 2], p2: [f32; 2], t: f32) -> [f32; 2] {
     let t1 = 1.0 - t;
     [
-        t1 * t1 * p0[0] + 2.0 * t1 * t * ctrl[0] + t * t * p2[0],
-        t1 * t1 * p0[1] + 2.0 * t1 * t * ctrl[1] + t * t * p2[1],
+        (t * t).mul_add(p2[0], (t1 * t1).mul_add(p0[0], 2.0 * t1 * t * ctrl[0])),
+        (t * t).mul_add(p2[1], (t1 * t1).mul_add(p0[1], 2.0 * t1 * t * ctrl[1])),
     ]
 }
 
@@ -188,13 +193,13 @@ fn bezier_tangent(p0: [f32; 2], ctrl: [f32; 2], p2: [f32; 2], t: f32) -> [f32; 2
     // B'(t) = 2(1-t)(ctrl - p0) + 2t(p2 - ctrl)
     let t1 = 1.0 - t;
     [
-        2.0 * t1 * (ctrl[0] - p0[0]) + 2.0 * t * (p2[0] - ctrl[0]),
-        2.0 * t1 * (ctrl[1] - p0[1]) + 2.0 * t * (p2[1] - ctrl[1]),
+        (2.0 * t1).mul_add(ctrl[0] - p0[0], 2.0 * t * (p2[0] - ctrl[0])),
+        (2.0 * t1).mul_add(ctrl[1] - p0[1], 2.0 * t * (p2[1] - ctrl[1])),
     ]
 }
 
 fn normalize(v: [f32; 2]) -> [f32; 2] {
-    let len: f32 = (v[0] * v[0] + v[1] * v[1]).sqrt();
+    let len: f32 = v[0].hypot(v[1]);
     if len > 1e-6 {
         [v[0] / len, v[1] / len]
     } else {
@@ -208,7 +213,7 @@ pub fn build_line_and_arrow_vertices(
     node_shapes: &[NodeShape],
     elements: &[ElementType],
     zoom: f32,
-    hovered_index: &i32,
+    hovered_index: i32,
 ) -> (Vec<EdgeVertex>, Vec<EdgeVertex>) {
     const LINE_THICKNESS: f32 = 2.25;
     const ARROW_LENGTH_PX: f32 = 10.0;
@@ -239,9 +244,8 @@ pub fn build_line_and_arrow_vertices(
                     _ => {
                         if matches!(elements[center_idx], ElementType::NoDraw) {
                             continue;
-                        } else {
-                            0
                         }
+                        0
                     }
                 },
                 _ => 0,
@@ -268,12 +272,12 @@ pub fn build_line_and_arrow_vertices(
                 let offset_y = offset_angle.sin() * radius_pix * 0.5;
 
                 start = [
-                    node_center[0] + offset_x + r * radius_pix / 4.0 * angle.cos(),
-                    node_center[1] + offset_y + r * radius_pix / 4.0 * angle.sin(),
+                    (r * radius_pix / 4.0).mul_add(angle.cos(), node_center[0] + offset_x),
+                    (r * radius_pix / 4.0).mul_add(angle.sin(), node_center[1] + offset_y),
                 ];
                 end = [
-                    node_center[0] - offset_x + r * radius_pix / 4.0 * angle.cos(),
-                    node_center[1] - offset_y + r * radius_pix / 4.0 * angle.sin(),
+                    (r * radius_pix / 4.0).mul_add(angle.cos(), node_center[0] - offset_x),
+                    (r * radius_pix / 4.0).mul_add(angle.sin(), node_center[1] - offset_y),
                 ];
 
                 let half_shape = match start_shape {
@@ -290,7 +294,7 @@ pub fn build_line_and_arrow_vertices(
 
         // Adjust start point to node perimeter
         let dir_start = [center[0] - start_center[0], center[1] - start_center[1]];
-        let start_len = (dir_start[0] * dir_start[0] + dir_start[1] * dir_start[1]).sqrt();
+        let start_len = dir_start[0].hypot(dir_start[1]);
         let dir_start_n = if start_len > 1e-6 {
             [dir_start[0] / start_len, dir_start[1] / start_len]
         } else {
@@ -301,8 +305,8 @@ pub fn build_line_and_arrow_vertices(
         if start_idx != center_idx {
             start = match start_shape {
                 NodeShape::Circle { r } => [
-                    start_center[0] + dir_start_n[0] * (r - perimeter_offset) * radius_pix,
-                    start_center[1] + dir_start_n[1] * (r - perimeter_offset) * radius_pix,
+                    (dir_start_n[0] * (r - perimeter_offset)).mul_add(radius_pix, start_center[0]),
+                    (dir_start_n[1] * (r - perimeter_offset)).mul_add(radius_pix, start_center[1]),
                 ],
                 NodeShape::Rectangle { w, h } => {
                     let dx = dir_start_n[0];
@@ -314,13 +318,13 @@ pub fn build_line_and_arrow_vertices(
                     if dy.abs() > 1e-6 {
                         scale = scale.min((h * 0.25 / 2.0) / dy.abs());
                     }
-                    if !scale.is_finite() {
-                        [start_center[0], start_center[1]]
-                    } else {
+                    if scale.is_finite() {
                         [
-                            start_center[0] + dir_start_n[0] * scale * radius_pix,
-                            start_center[1] + dir_start_n[1] * scale * radius_pix,
+                            (dir_start_n[0] * scale).mul_add(radius_pix, start_center[0]),
+                            (dir_start_n[1] * scale).mul_add(radius_pix, start_center[1]),
                         ]
+                    } else {
+                        [start_center[0], start_center[1]]
                     }
                 }
             };
@@ -328,7 +332,7 @@ pub fn build_line_and_arrow_vertices(
 
         // Adjust end point to node perimeter
         let dir_end = [center[0] - end_center[0], center[1] - end_center[1]];
-        let end_len = (dir_end[0] * dir_end[0] + dir_end[1] * dir_end[1]).sqrt();
+        let end_len = dir_end[0].hypot(dir_end[1]);
         let dir_end_n = if end_len > 1e-6 {
             [dir_end[0] / end_len, dir_end[1] / end_len]
         } else {
@@ -338,8 +342,8 @@ pub fn build_line_and_arrow_vertices(
         if end_idx != center_idx {
             end = match end_shape {
                 NodeShape::Circle { r } => [
-                    end_center[0] + dir_end_n[0] * (r - perimeter_offset) * radius_pix,
-                    end_center[1] + dir_end_n[1] * (r - perimeter_offset) * radius_pix,
+                    (dir_end_n[0] * (r - perimeter_offset)).mul_add(radius_pix, end_center[0]),
+                    (dir_end_n[1] * (r - perimeter_offset)).mul_add(radius_pix, end_center[1]),
                 ],
                 NodeShape::Rectangle { w, h } => {
                     let dx = dir_end_n[0];
@@ -351,28 +355,25 @@ pub fn build_line_and_arrow_vertices(
                     if dy.abs() > 1e-6 {
                         scale = scale.min((h * 0.25) / dy.abs());
                     }
-                    if !scale.is_finite() {
-                        [end_center[0], end_center[1]]
-                    } else {
+                    if scale.is_finite() {
                         [
-                            end_center[0] + dir_end_n[0] * scale * radius_pix,
-                            end_center[1] + dir_end_n[1] * scale * radius_pix,
+                            (dir_end_n[0] * scale).mul_add(radius_pix, end_center[0]),
+                            (dir_end_n[1] * scale).mul_add(radius_pix, end_center[1]),
                         ]
+                    } else {
+                        [end_center[0], end_center[1]]
                     }
                 }
             };
         }
 
-        let hovered = if center_idx as i32 == *hovered_index {
-            1
-        } else {
-            0
-        };
+        #[expect(clippy::cast_possible_wrap)]
+        let hovered = u32::from(center_idx as i32 == hovered_index);
 
         // Compute control point for quadratic Bézier
         let ctrl = [
-            (4.0 * center[0] - start[0] - end[0]) * 0.5,
-            (4.0 * center[1] - start[1] - end[1]) * 0.5,
+            (4.0f32.mul_add(center[0], -start[0]) - end[0]) * 0.5,
+            (4.0f32.mul_add(center[1], -start[1]) - end[1]) * 0.5,
         ];
 
         // Calculate tangent at end for arrow
@@ -381,9 +382,9 @@ pub fn build_line_and_arrow_vertices(
         // Generate strip vertices
         let first_strip = line_vertices.is_empty();
 
-        if !first_strip {
+        if let Some(prev_last) = line_vertices.last() {
             // duplicate previous last to avoid breaks
-            line_vertices.push(*line_vertices.last().unwrap());
+            line_vertices.push(*prev_last);
         }
 
         for i in 0..=BEZIER_SEGMENTS {
@@ -397,12 +398,12 @@ pub fn build_line_and_arrow_vertices(
             // push left and right vertices for the strip
             let thickness = LINE_THICKNESS * zoom;
             let left = [
-                point[0] + perp[0] * thickness,
-                point[1] + perp[1] * thickness,
+                perp[0].mul_add(thickness, point[0]),
+                perp[1].mul_add(thickness, point[1]),
             ];
             let right = [
-                point[0] - perp[0] * thickness,
-                point[1] - perp[1] * thickness,
+                perp[0].mul_add(-thickness, point[0]),
+                perp[1].mul_add(-thickness, point[1]),
             ];
 
             if i == 0 && !first_strip {
@@ -461,27 +462,27 @@ pub fn build_line_and_arrow_vertices(
             let diamond_width = SHADER_DIAMOND_WIDTH_PX;
 
             let diamond_tip_padded = [
-                tip[0] + dir[0] * ARROW_PADDING_PX,
-                tip[1] + dir[1] * ARROW_PADDING_PX,
+                dir[0].mul_add(ARROW_PADDING_PX, tip[0]),
+                dir[1].mul_add(ARROW_PADDING_PX, tip[1]),
             ];
             let diamond_back_padded = [
-                tip[0] - dir[0] * (diamond_length + ARROW_PADDING_PX),
-                tip[1] - dir[1] * (diamond_length + ARROW_PADDING_PX),
+                dir[0].mul_add(-(diamond_length + ARROW_PADDING_PX), tip[0]),
+                dir[1].mul_add(-(diamond_length + ARROW_PADDING_PX), tip[1]),
             ];
 
             let diamond_center = [
-                tip[0] - dir[0] * diamond_length * 0.5,
-                tip[1] - dir[1] * diamond_length * 0.5,
+                (dir[0] * diamond_length).mul_add(-0.5, tip[0]),
+                (dir[1] * diamond_length).mul_add(-0.5, tip[1]),
             ];
-            let halfw_padded = (diamond_width * 0.5) + ARROW_PADDING_PX;
+            let halfw_padded = diamond_width.mul_add(0.5, ARROW_PADDING_PX);
 
             let diamond_left_padded = [
-                diamond_center[0] + perp[0] * halfw_padded,
-                diamond_center[1] + perp[1] * halfw_padded,
+                perp[0].mul_add(halfw_padded, diamond_center[0]),
+                perp[1].mul_add(halfw_padded, diamond_center[1]),
             ];
             let diamond_right_padded = [
-                diamond_center[0] - perp[0] * halfw_padded,
-                diamond_center[1] - perp[1] * halfw_padded,
+                perp[0].mul_add(-halfw_padded, diamond_center[0]),
+                perp[1].mul_add(-halfw_padded, diamond_center[1]),
             ];
 
             let common = |pos: [f32; 2]| EdgeVertex {
@@ -511,21 +512,21 @@ pub fn build_line_and_arrow_vertices(
             // Simple triangular arrowhead
 
             let tip_padded = [
-                tip[0] + dir[0] * ARROW_PADDING_PX,
-                tip[1] + dir[1] * ARROW_PADDING_PX,
+                dir[0].mul_add(ARROW_PADDING_PX, tip[0]),
+                dir[1].mul_add(ARROW_PADDING_PX, tip[1]),
             ];
             let base_center_padded = [
-                tip[0] - dir[0] * (ARROW_LENGTH_PX + ARROW_PADDING_PX),
-                tip[1] - dir[1] * (ARROW_LENGTH_PX + ARROW_PADDING_PX),
+                dir[0].mul_add(-(ARROW_LENGTH_PX + ARROW_PADDING_PX), tip[0]),
+                dir[1].mul_add(-(ARROW_LENGTH_PX + ARROW_PADDING_PX), tip[1]),
             ];
-            let halfw_padded = (ARROW_WIDTH_PX * 0.5) + ARROW_PADDING_PX;
+            let halfw_padded = ARROW_WIDTH_PX.mul_add(0.5, ARROW_PADDING_PX);
             let left_padded = [
-                base_center_padded[0] + perp[0] * halfw_padded,
-                base_center_padded[1] + perp[1] * halfw_padded,
+                perp[0].mul_add(halfw_padded, base_center_padded[0]),
+                perp[1].mul_add(halfw_padded, base_center_padded[1]),
             ];
             let right_padded = [
-                base_center_padded[0] - perp[0] * halfw_padded,
-                base_center_padded[1] - perp[1] * halfw_padded,
+                perp[0].mul_add(-halfw_padded, base_center_padded[0]),
+                perp[1].mul_add(-halfw_padded, base_center_padded[1]),
             ];
 
             let common = |pos: [f32; 2]| EdgeVertex {
@@ -558,7 +559,7 @@ pub fn create_edge_vertex_buffer(
     node_shapes: &[NodeShape],
     elements: &[ElementType],
     zoom: f32,
-    hovered_index: &i32,
+    hovered_index: i32,
 ) -> (wgpu::Buffer, u32, wgpu::Buffer, u32) {
     // Build separate vertex lists
     let (line_vertices, arrow_vertices) = build_line_and_arrow_vertices(

@@ -4,14 +4,14 @@
 
 > Non-exhaustive
 
--   Transitive
--   FunctionalProperty
--   InverseFunctionalProperty
--   ReflexiveProperty
--   IrreflexiveProperty
--   SymmetricProperty
--   AsymmetricProperty
--   HasKey
+- `Transitive`
+- `FunctionalProperty`
+- `InverseFunctionalProperty`
+- `ReflexiveProperty`
+- `IrreflexiveProperty`
+- `SymmetricProperty`
+- `AsymmetricProperty`
+- `HasKey`
 
 # Elements (nodes and edges)
 
@@ -29,19 +29,19 @@ If no negative numbers are present and the enum's code can fit, the code of an e
 -   i64
 -   i128
 
-## Reserved [0 .. 9999]
+## Reserved [`0` .. `9999`]
 
 Reserved for internal use.
 
 | Code | Type   | Comment |
 | :--: | :----- | :------ |
-|  0   | NoDraw |         |
+|  0   | `NoDraw` |         |
 
-## RDF [10_000 .. 19_999]
+## RDF [`10_000` .. `19_999`]
 
 All RDF elements.
 
-### Nodes [10_000 .. 14_999]
+### Nodes [`10_000` .. `14_999`]
 
 Element codes for RDF nodes.
 
@@ -49,19 +49,19 @@ Element codes for RDF nodes.
 | :--: | :--- | :------ |
 |      |      |         |
 
-### Edges [15_000 .. 19_999]
+### Edges [`15_000` .. `19_999`]
 
 Element codes for RDF edges.
 
 | Code  | Type        | Comment |
 | :---: | :---------- | :------ |
-| 15000 | RdfProperty |         |
+| 15000 | `RdfProperty` |         |
 
-## RDFS [20_000 .. 29_999]
+## RDFS [`20_000` .. `29_999`]
 
 All RDFS elements.
 
-### Nodes [20_000 .. 24_999]
+### Nodes [`20_000` .. `24_999`]
 
 Element codes for RDFS nodes.
 
@@ -72,54 +72,54 @@ Element codes for RDFS nodes.
 | 20002 | Resource |         |
 | 20003 | Datatype |         |
 
-### Edges [25_000 .. 29_999]
+### Edges [`25_000` .. `29_999`]
 
 Element codes for RDFS edges.
 
 | Code  | Type       | Comment |
 | :---: | :--------- | :------ |
-| 25000 | SubclassOf |         |
+| 25000 | `SubclassOf` |         |
 
-## OWL [30_000 .. 39_999]
+## OWL [`30_000` .. `39_999`]
 
 All OWL elements.
 
-### Nodes [30_000 .. 34_999]
+### Nodes [`30_000` .. `34_999`]
 
 Element codes for OWL nodes.
 
 | Code  | Type            | Comment |
 | :---: | :-------------- | :------ |
-| 30000 | AnonymousClass  |         |
-| 30001 | Class           |         |
-| 30002 | Complement      |         |
-| 30003 | DeprecatedClass |         |
-| 30004 | ExternalClass   |         |
-| 30005 | EquivalentClass |         |
-| 30006 | DisjointUnion   |         |
-| 30007 | IntersectionOff |         |
-| 30008 | Thing           |         |
-| 30009 | UnionOf         |         |
+| 30000 | `AnonymousClass`  |         |
+| 30001 | `Class`           |         |
+| 30002 | `Complement`      |         |
+| 30003 | `DeprecatedClass` |         |
+| 30004 | `ExternalClass`   |         |
+| 30005 | `EquivalentClass` |         |
+| 30006 | `DisjointUnion`   |         |
+| 30007 | `IntersectionOff` |         |
+| 30008 | `Thing`           |         |
+| 30009 | `UnionOf`         |         |
 
-### Edges [35_000 .. 39_999]
+### Edges [`35_000` .. `39_999`]
 
 Element codes for OWL edges.
 
 | Code  | Type               | Comment |
 | :---: | :----------------- | :------ |
-| 35000 | DatatypeProperty   |         |
-| 35001 | DisjointWith       |         |
-| 35002 | DeprecatedProperty |         |
-| 35003 | ExternalProperty   |         |
-| 35004 | InverseOf          |         |
-| 35005 | ObjectProperty     |         |
-| 35006 | ValuesFrom         |         |
+| 35000 | `DatatypeProperty`   |         |
+| 35001 | `DisjointWith`       |         |
+| 35002 | `DeprecatedProperty` |         |
+| 35003 | `ExternalProperty`   |         |
+| 35004 | `InverseOf`          |         |
+| 35005 | `ObjectProperty`     |         |
+| 35006 | `ValuesFrom`         |         |
 
-## Generic [40_000 .. 59_999]
+## Generic [`40_000` .. `59_999`]
 
 All Generic elements.
 
-### Nodes [40_000 .. 49_999]
+### Nodes [`40_000` .. `49_999`]
 
 Element codes for Generic nodes.
 
@@ -127,7 +127,7 @@ Element codes for Generic nodes.
 | :---: | :------ | :------ |
 | 40000 | Generic |         |
 
-### Edges [50_000 .. 59_999]
+### Edges [`50_000` .. `59_999`]
 
 Element codes for Generic edges.
 

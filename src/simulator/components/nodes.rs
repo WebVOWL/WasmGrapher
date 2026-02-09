@@ -32,7 +32,7 @@ pub struct NodeState {
 }
 
 impl NodeState {
-    pub fn is_static(&self) -> bool {
+    pub const fn is_static(&self) -> bool {
         self.fixed || self.dragged
     }
 }
