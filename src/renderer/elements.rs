@@ -1,3 +1,4 @@
+pub mod cardinality;
 pub mod characteristic;
 pub mod element_type;
 pub mod generic;

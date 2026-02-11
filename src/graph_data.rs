@@ -1,4 +1,7 @@
-pub use crate::renderer::elements::{element_type::ElementType, owl::*, rdf::*, rdfs::*};
+use crate::prelude::Characteristic;
+pub use crate::renderer::elements::{
+    cardinality::Cardinality, element_type::ElementType, owl::*, rdf::*, rdfs::*,
+};
 use rkyv::{Archive, Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -24,10 +27,8 @@ pub struct GraphDisplayData {
     ///
     /// The tuple consists of 2 elements:
     ///     - u32: The ID of the edge. Defined by the indices of `elements`.
-    ///     - (String, Option<String>):
-    ///         - String: The min cardinality of the edge.
-    ///         - Option<String>: The max cardinality of the target edge.
-    pub cardinalities: Vec<(u32, (String, Option<String>))>,
+    ///     - String: The cardinality text for the edge.
+    pub cardinalities: Vec<(u32, String)>,
     /// Special node types. For instance "transitive" or "inverse functional".
     ///
     /// The hashmap consists of:
@@ -115,11 +116,11 @@ impl GraphDisplayData {
             [2, 23, 5],
             [5, 23, 2],
         ];
-        let cardinalities: Vec<(u32, (String, Option<String>))> = vec![
-            (0, ("∀".to_string(), None)),
-            (8, ("1".to_string(), None)),
-            (1, ("1".to_string(), Some("10".to_string()))),
-            (10, ("5".to_string(), Some("10".to_string()))),
+        let cardinalities: Vec<(u32, String)> = vec![
+            (0, "∀".to_string()),
+            (8, "1".to_string()),
+            (1, "1..10".to_string()),
+            (10, "5..10".to_string()),
         ];
         let mut characteristics = HashMap::new();
         characteristics.insert(21, "transitive".to_string());

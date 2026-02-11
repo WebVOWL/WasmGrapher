@@ -9,6 +9,7 @@ use crate::{
     quadtree::QuadTree,
     renderer::{
         elements::{
+            cardinality::Cardinality,
             characteristic::Characteristic,
             element_type::ElementType,
             generic::*,
@@ -66,11 +67,11 @@ pub struct State {
     num_vertices: u32,
     view_uniform_buffer: wgpu::Buffer,
     view_uniforms: ViewUniforms, // Store CPU-side copy
-    // bind group for group(0): binding 0 = resolution uniform only
+    /// bind group for group(0): binding 0 = resolution uniform only
     bind_group0: wgpu::BindGroup,
-    // instance buffer with node positions (array<vec2<f32>>), bound as vertex buffer slot 1
+    /// instance buffer with node positions (array<vec2<f32>>), bound as vertex buffer slot 1
     node_instance_buffer: wgpu::Buffer,
-    // number of instances (length of node positions)
+    /// number of instances (length of node positions)
     num_instances: u32,
     edge_pipeline: wgpu::RenderPipeline,
     edge_vertex_buffer: wgpu::Buffer,
@@ -79,14 +80,14 @@ pub struct State {
     arrow_vertex_buffer: wgpu::Buffer,
     num_arrow_vertices: u32,
 
-    // Node and edge coordinates in pixels
+    /// Node and edge coordinates in pixels
     positions: Vec<[f32; 2]>,
     labels: Vec<String>,
     edges: Vec<[usize; 3]>,
     solitary_edges: Vec<[usize; 3]>,
     elements: Vec<ElementType>,
     node_shapes: Vec<NodeShape>,
-    cardinalities: Vec<(u32, (String, Option<String>))>,
+    cardinalities: Vec<(u32, String)>,
     characteristics: HashMap<usize, String>,
     simulator: Simulator<'static, 'static>,
     paused: bool,
@@ -1109,7 +1110,7 @@ impl State {
 
         // cardinalities
         let mut cardinality_buffers: Vec<(usize, GlyphBuffer)> = Vec::new();
-        for (edge_u32, (cardinality_min, cardinality_max)) in &self.cardinalities {
+        for (edge_u32, cardinality) in &self.cardinalities {
             let edge_idx = *edge_u32 as usize;
             let font_px = 12.0 * scale;
             let line_px = 12.0 * scale;
@@ -1119,11 +1120,7 @@ impl State {
             buf.set_size(&mut font_system, Some(label_width), Some(label_height));
 
             let attrs = &Attrs::new().family(Family::SansSerif);
-            let cardinality_text = cardinality_max.as_ref().map_or_else(
-                || cardinality_min.clone(),
-                |max| format!("{cardinality_min}..{max}"),
-            );
-            let spans = vec![(cardinality_text.as_str(), attrs.clone())];
+            let spans = vec![(cardinality.as_str(), attrs.clone())];
             buf.set_rich_text(
                 &mut font_system,
                 spans,
