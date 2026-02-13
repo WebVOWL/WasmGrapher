@@ -1,3 +1,4 @@
+use super::SparqlSnippet;
 use super::{generic::GenericType, owl::OwlType, rdf::RdfType, rdfs::RdfsType};
 use rkyv::{Archive, Deserialize, Serialize};
 use std::fmt::Display;
@@ -66,7 +67,7 @@ impl From<ElementType> for u64 {
 }
 
 impl From<ElementType> for u32 {
-    #[doc =  include_str!("../../../Visualization.md")]
+    #[doc =  include_str!("../../../../Visualization.md")]
     fn from(value: ElementType) -> Self {
         match value {
             ElementType::NoDraw => 0,
@@ -78,6 +79,21 @@ impl From<ElementType> for u32 {
             ElementType::Owl(OwlType::Edge(edge)) => edge.into(),
             ElementType::Generic(GenericType::Node(node)) => node.into(),
             ElementType::Generic(GenericType::Edge(edge)) => edge.into(),
+        }
+    }
+}
+
+impl SparqlSnippet for ElementType {
+    fn snippet(self) -> &'static str {
+        match self {
+            ElementType::NoDraw => "",
+            ElementType::Rdf(RdfType::Edge(edge)) => edge.snippet(),
+            ElementType::Rdfs(RdfsType::Node(node)) => node.snippet(),
+            ElementType::Rdfs(RdfsType::Edge(edge)) => edge.snippet(),
+            ElementType::Owl(OwlType::Node(node)) => node.snippet(),
+            ElementType::Owl(OwlType::Edge(edge)) => edge.snippet(),
+            ElementType::Generic(GenericType::Node(node)) => node.snippet(),
+            ElementType::Generic(GenericType::Edge(edge)) => edge.snippet(),
         }
     }
 }

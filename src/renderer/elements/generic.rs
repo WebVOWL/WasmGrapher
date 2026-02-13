@@ -1,5 +1,5 @@
+use super::SparqlSnippet;
 use rkyv::{Archive, Deserialize, Serialize};
-use std::fmt::Display;
 use strum::EnumIter;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
@@ -35,6 +35,14 @@ impl From<GenericNode> for u32 {
     }
 }
 
+impl SparqlSnippet for GenericNode {
+    fn snippet(self) -> &'static str {
+        match self {
+            GenericNode::Generic => todo!(),
+        }
+    }
+}
+
 #[derive(
     Copy,
     Clone,
@@ -58,6 +66,14 @@ impl From<GenericEdge> for u32 {
     fn from(value: GenericEdge) -> Self {
         match value {
             GenericEdge::Generic => 50000,
+        }
+    }
+}
+
+impl SparqlSnippet for GenericEdge {
+    fn snippet(self) -> &'static str {
+        match self {
+            GenericEdge::Generic => todo!(),
         }
     }
 }
