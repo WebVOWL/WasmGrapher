@@ -1,5 +1,5 @@
+use super::SparqlSnippet;
 use rkyv::{Archive, Deserialize, Serialize};
-use std::fmt::Display;
 use strum::EnumIter;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
@@ -34,6 +34,19 @@ impl From<RdfEdge> for u32 {
     fn from(value: RdfEdge) -> Self {
         match value {
             RdfEdge::RdfProperty => 15000,
+        }
+    }
+}
+
+impl SparqlSnippet for RdfEdge {
+    fn snippet(self) -> &'static str {
+        match self {
+            RdfEdge::RdfProperty => {
+                r#"{
+                ?id rdf:Property ?target
+                BIND(rdf:Property AS ?nodeType)
+                }"#
+            }
         }
     }
 }
