@@ -17,24 +17,12 @@
 
 This document details the conversion of element enums to number codes for all visualized types.
 
-The following types can _safely_ store the code of an element enum:
-
--   u32
--   u64
--   u128
-
-If no negative numbers are present and the enum's code can fit, the code of an element enum can also be stored in:
-
--   i32
--   i64
--   i128
-
 ## Reserved [`0` .. `9999`]
 
 Reserved for internal use.
 
-| Code | Type   | Comment |
-| :--: | :----- | :------ |
+| Code | Type     | Comment |
+| :--: | :------- | :------ |
 |  0   | `NoDraw` |         |
 
 ## RDF [`10_000` .. `19_999`]
@@ -53,8 +41,8 @@ Element codes for RDF nodes.
 
 Element codes for RDF edges.
 
-| Code  | Type        | Comment |
-| :---: | :---------- | :------ |
+| Code  | Type          | Comment |
+| :---: | :------------ | :------ |
 | 15000 | `RdfProperty` |         |
 
 ## RDFS [`20_000` .. `29_999`]
@@ -76,8 +64,8 @@ Element codes for RDFS nodes.
 
 Element codes for RDFS edges.
 
-| Code  | Type       | Comment |
-| :---: | :--------- | :------ |
+| Code  | Type         | Comment |
+| :---: | :----------- | :------ |
 | 25000 | `SubclassOf` |         |
 
 ## OWL [`30_000` .. `39_999`]
@@ -88,8 +76,8 @@ All OWL elements.
 
 Element codes for OWL nodes.
 
-| Code  | Type            | Comment |
-| :---: | :-------------- | :------ |
+| Code  | Type              | Comment |
+| :---: | :---------------- | :------ |
 | 30000 | `AnonymousClass`  |         |
 | 30001 | `Class`           |         |
 | 30002 | `Complement`      |         |
@@ -105,8 +93,8 @@ Element codes for OWL nodes.
 
 Element codes for OWL edges.
 
-| Code  | Type               | Comment |
-| :---: | :----------------- | :------ |
+| Code  | Type                 | Comment |
+| :---: | :------------------- | :------ |
 | 35000 | `DatatypeProperty`   |         |
 | 35001 | `DisjointWith`       |         |
 | 35002 | `DeprecatedProperty` |         |
