@@ -113,6 +113,11 @@ pub struct State {
     radial_menu_bind_group: wgpu::BindGroup,
     radial_menu_uniform_buffer: wgpu::Buffer,
     radial_menu_state: RadialMenuState,
+
+    // Depth
+    depth_texture: wgpu::Texture,
+    depth_view: wgpu::TextureView,
+    depth_format: wgpu::TextureFormat,
 }
 
 impl State {
@@ -514,7 +519,13 @@ impl State {
                 // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth24Plus,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -797,11 +808,23 @@ impl State {
         let text_buffers = None;
         let cardinality_text_buffers = None;
 
-        // Create one text buffer per node with sample labels
-        // text_buffers are created when glyphon is initialized (lazy).
+        let depth_format = wgpu::TextureFormat::Depth24Plus;
 
-        // If the surface is already configured (non-zero initial size), initialize glyphon now.
-        // Helper below will create FontSystem, SwashCache, Viewport, TextAtlas, TextRenderer and buffers.
+        let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("depth texture"),
+            size: wgpu::Extent3d {
+                width: config.width,
+                height: config.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: depth_format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut state = Self {
             surface,
@@ -855,6 +878,9 @@ impl State {
             radial_menu_bind_group,
             radial_menu_uniform_buffer,
             radial_menu_state,
+            depth_format,
+            depth_view,
+            depth_texture,
         };
 
         if surface_configured {
@@ -911,7 +937,13 @@ impl State {
             &mut atlas,
             &self.device,
             wgpu::MultisampleState::default(),
-            None,
+            Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth24Plus,
+                depth_write_enabled: false,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
         );
         let scale = self.window.scale_factor() as f32;
         let mut text_buffers: Vec<GlyphBuffer> = Vec::new();
@@ -969,7 +1001,7 @@ impl State {
             buf.set_size(&mut font_system, Some(label_width), Some(label_height));
             buf.set_wrap(&mut font_system, glyphon::Wrap::Word);
             // sample label using the ElementType
-            let attrs = &Attrs::new().family(Family::SansSerif);
+            let attrs = &Attrs::new().family(Family::SansSerif).metadata(i);
             let element_metrics = Metrics::new(font_px - 3.0, line_px);
             let mut owned_spans: Vec<(String, Attrs)> = Vec::new();
             match self.elements[i] {
@@ -1553,7 +1585,9 @@ impl State {
                 },
             );
             atlas.trim();
-            if let Err(e) = text_renderer.prepare(
+            let n = self.num_instances as f32;
+
+            if let Err(e) = text_renderer.prepare_with_depth(
                 &self.device,
                 &self.queue,
                 font_system,
@@ -1561,8 +1595,18 @@ impl State {
                 viewport,
                 areas,
                 swash_cache,
+                |meta: usize| {
+                    let n = self.num_instances as f32;
+                    let i = meta.min(self.num_instances as usize - 1) as f32;
+
+                    if self.hovered_index >= 0 && meta == self.hovered_index as usize {
+                        0.0
+                    } else {
+                        (i + 1.0) / (n + 1.0)
+                    }
+                },
             ) {
-                log::error!("glyphon prepare failed: {:?}", e);
+                log::error!("glyphon prepare_with_depth failed: {:?}", e);
             }
         }
 
@@ -1594,7 +1638,14 @@ impl State {
                     },
                     depth_slice: None,
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });

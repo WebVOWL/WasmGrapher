@@ -64,6 +64,7 @@ pub const VERTICES: &[Vertex] = &[
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct NodeInstance {
     pub position: [f32; 2],
+    pub depth: f32,
     pub node_type: u32,
     pub shape_type: u32,
     pub shape_dim: [f32; 2],
@@ -81,12 +82,18 @@ pub struct MenuUniforms {
 }
 
 impl NodeInstance {
-    const ATTRIBS: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![1 => Float32x2, 2 => Uint32, 3 => Uint32, 4 => Float32x2, 5 => Uint32];
+    const ATTRIBS: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
+        1 => Float32x2, // pos
+        2 => Float32,   // depth
+        3 => Uint32,    // element
+        4 => Uint32,    // shape
+        5 => Float32x2, // size
+        6 => Uint32,    // flags / color
+    ];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBS,
         }
@@ -99,15 +106,27 @@ pub fn build_node_instances(
     node_shapes: &[NodeShape],
     hovered_index: &i32,
 ) -> Vec<NodeInstance> {
-    let mut node_instances: Vec<NodeInstance> = vec![];
+    let mut node_instances: Vec<NodeInstance> = Vec::with_capacity(positions.len());
+    let n = positions.len() as f32;
+
     for (i, pos) in positions.iter().enumerate() {
         let (shape_type, shape_dim) = match node_shapes[i] {
             NodeShape::Circle { r } => (0, [r, 0.0]),
             NodeShape::Rectangle { w, h } => (1, [w, h]),
         };
         let hovered = if i as i32 == *hovered_index { 1 } else { 0 };
+
+        // Map instance order to depth in [0..1], where smaller is closer.
+        // Hovered node is forced closest so it occludes others.
+        let depth = if hovered == 1 {
+            0.0
+        } else {
+            (i as f32 + 1.0) / (n + 1.0)
+        };
+
         node_instances.push(NodeInstance {
             position: *pos,
+            depth,
             node_type: elements[i].into(),
             shape_type,
             shape_dim,

@@ -1,10 +1,11 @@
 struct VertIn {
     @location(0) quad_pos: vec2<f32>,         // [-1..1] quad corner in local space
     @location(1) inst_pos: vec2<f32>,         // per-instance node position in pixels
-    @location(2) element_type: u32,           // Type of node used when drawing
-    @location(3) shape: u32,                  // The shape of the node, 0: Circle, 1: Rectangle
-    @location(4) shape_dimensions: vec2<f32>, // The radius of a circle or the width and height of a rectangle
-    @location(5) hovered: u32,                // 1 when hovered, 0 otherwise
+    @location(2) instance_depth: f32,         // Per instance depth
+    @location(3) element_type: u32,           // Type of node used when drawing
+    @location(4) shape: u32,                  // The shape of the node, 0: Circle, 1: Rectangle
+    @location(5) shape_dimensions: vec2<f32>, // The radius of a circle or the width and height of a rectangle
+    @location(6) hovered: u32,                // 1 when hovered, 0 otherwise
 };
 
 struct VertOut {
@@ -56,7 +57,7 @@ fn vs_node_main(
 
     let ndc_x = (screen.x / u_view.resolution.x) * 2.0 - 1.0;
     let ndc_y = 1.0 - (screen.y / u_view.resolution.y) * 2.0;
-    out.clip_position = vec4<f32>(ndc_x, ndc_y, 0.0, 1.0);
+    out.clip_position = vec4<f32>(ndc_x, ndc_y, in.instance_depth, 1.0);
 
     let aspect = vec2<f32>(in.quad_pos.x, in.quad_pos.y);
     out.v_uv = aspect * 0.5 + vec2<f32>(0.5, 0.5);
