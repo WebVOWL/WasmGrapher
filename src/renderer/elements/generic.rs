@@ -38,7 +38,7 @@ impl From<GenericNode> for u32 {
 impl SparqlSnippet for GenericNode {
     fn snippet(self) -> &'static str {
         match self {
-            GenericNode::Generic => todo!(),
+            Self::Generic => todo!(),
         }
     }
 }
@@ -73,7 +73,7 @@ impl From<GenericEdge> for u32 {
 impl SparqlSnippet for GenericEdge {
     fn snippet(self) -> &'static str {
         match self {
-            GenericEdge::Generic => todo!(),
+            Self::Generic => todo!(),
         }
     }
 }

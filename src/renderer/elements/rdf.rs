@@ -33,7 +33,7 @@ pub enum RdfEdge {
 impl From<RdfEdge> for u32 {
     fn from(value: RdfEdge) -> Self {
         match value {
-            RdfEdge::RdfProperty => 15000,
+            Self::RdfProperty => 15000,
         }
     }
 }
@@ -41,11 +41,11 @@ impl From<RdfEdge> for u32 {
 impl SparqlSnippet for RdfEdge {
     fn snippet(self) -> &'static str {
         match self {
-            RdfEdge::RdfProperty => {
-                r#"{
+            Self::RdfProperty => {
+                r"{
                 ?id rdf:Property ?target
                 BIND(rdf:Property AS ?nodeType)
-                }"#
+                }"
             }
         }
     }

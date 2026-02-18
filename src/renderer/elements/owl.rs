@@ -56,66 +56,66 @@ impl From<OwlNode> for u32 {
 impl SparqlSnippet for OwlNode {
     fn snippet(self) -> &'static str {
         match self {
-            OwlNode::AnonymousClass => {
+            Self::AnonymousClass => {
                 r#"{
                 ?id a owl:Class
                 FILTER(!isIRI(?id))
                 BIND("blanknode" AS ?nodeType)
                 }"#
             }
-            OwlNode::Class => {
-                r#"{
+            Self::Class => {
+                r"{
                 ?id a owl:Class .
                 FILTER(isIRI(?id))
                 BIND(owl:Class AS ?nodeType)
-                }"#
+                }"
             }
-            OwlNode::Complement => {
-                r#"{
+            Self::Complement => {
+                r"{
                 ?id owl:complementOf ?target .
                 BIND(owl:complementOf AS ?nodeType)
-                }"#
+                }"
             }
-            OwlNode::DeprecatedClass => {
-                r#"{
+            Self::DeprecatedClass => {
+                r"{
                 ?id a owl:DeprecatedClass .
                 BIND(owl:DeprecatedClass AS ?nodeType)
-                }"#
+                }"
             }
-            OwlNode::ExternalClass => {
+            Self::ExternalClass => {
                 // Not handled here as externals uses identical
                 // logic across classes and properties.
                 ""
             }
-            OwlNode::EquivalentClass => {
-                r#"{
+            Self::EquivalentClass => {
+                r"{
                 ?id owl:equivalentClass ?target
                 BIND(owl:equivalentClass AS ?nodeType)
-                }"#
+                }"
             }
-            OwlNode::DisjointUnion => {
-                r#"{
+            Self::DisjointUnion => {
+                r"{
                 ?id owl:disjointUnionOf ?target .
                 BIND(owl:disjointUnionOf AS ?nodeType)
-                }"#
+                }"
             }
-            OwlNode::IntersectionOf => {
-                r#"{
+            Self::IntersectionOf => {
+                r"{
                 ?id owl:intersectionOf ?target .
                 BIND(owl:intersectionOf AS ?nodeType)
-                }"#
+                }"
             }
-            OwlNode::Thing => {
-                r#"{
+            Self::Thing => {
+                r"{
                 ?id a owl:Thing .
                 BIND(owl:Thing AS ?nodeType)
-                }"#
+                }"
             }
-            OwlNode::UnionOf => {
-                r#"{
+            Self::UnionOf => {
+                r"{
                 ?id owl:unionOf ?list .
                 BIND(owl:unionOf AS ?nodeType)
-                }"#
+                }"
             }
         }
     }
@@ -162,42 +162,42 @@ impl From<OwlEdge> for u32 {
 impl SparqlSnippet for OwlEdge {
     fn snippet(self) -> &'static str {
         match self {
-            OwlEdge::DatatypeProperty => {
-                r#"{
+            Self::DatatypeProperty => {
+                r"{
                 ?id owl:DatatypeProperty ?target
                 BIND(owl:DatatypeProperty AS ?nodeType)
-                }"#
+                }"
             }
-            OwlEdge::DisjointWith => {
-                r#"{
+            Self::DisjointWith => {
+                r"{
                 ?id owl:disjointWith ?target
                 BIND(owl:disjointWith AS ?nodeType)
-                }"#
+                }"
             }
-            OwlEdge::DeprecatedProperty => {
-                r#"{
+            Self::DeprecatedProperty => {
+                r"{
                 ?id a owl:DeprecatedProperty .
                 BIND(owl:DeprecatedProperty AS ?nodeType)
-                }"#
+                }"
             }
-            OwlEdge::ExternalProperty => {
+            Self::ExternalProperty => {
                 // Not handled here as externals uses identical
                 // logic across classes and properties.
                 ""
             }
-            OwlEdge::InverseOf => {
-                r#"{
+            Self::InverseOf => {
+                r"{
                 ?id owl:inverseOf ?target .
                 BIND(owl:inverseOf AS ?nodeType)
-                }"#
+                }"
             }
-            OwlEdge::ObjectProperty => {
-                r#"{
+            Self::ObjectProperty => {
+                r"{
                 ?id a owl:ObjectProperty
                 BIND(owl:ObjectProperty AS ?nodeType)
-                }"#
+                }"
             }
-            OwlEdge::ValuesFrom => {
+            Self::ValuesFrom => {
                 r#"{
                 {
                     ?id owl:someValuesFrom ?target .

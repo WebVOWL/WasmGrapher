@@ -86,14 +86,14 @@ impl From<ElementType> for u32 {
 impl SparqlSnippet for ElementType {
     fn snippet(self) -> &'static str {
         match self {
-            ElementType::NoDraw => "",
-            ElementType::Rdf(RdfType::Edge(edge)) => edge.snippet(),
-            ElementType::Rdfs(RdfsType::Node(node)) => node.snippet(),
-            ElementType::Rdfs(RdfsType::Edge(edge)) => edge.snippet(),
-            ElementType::Owl(OwlType::Node(node)) => node.snippet(),
-            ElementType::Owl(OwlType::Edge(edge)) => edge.snippet(),
-            ElementType::Generic(GenericType::Node(node)) => node.snippet(),
-            ElementType::Generic(GenericType::Edge(edge)) => edge.snippet(),
+            Self::NoDraw => "",
+            Self::Rdf(RdfType::Edge(edge)) => edge.snippet(),
+            Self::Rdfs(RdfsType::Node(node)) => node.snippet(),
+            Self::Rdfs(RdfsType::Edge(edge)) => edge.snippet(),
+            Self::Owl(OwlType::Node(node)) => node.snippet(),
+            Self::Owl(OwlType::Edge(edge)) => edge.snippet(),
+            Self::Generic(GenericType::Node(node)) => node.snippet(),
+            Self::Generic(GenericType::Edge(edge)) => edge.snippet(),
         }
     }
 }
