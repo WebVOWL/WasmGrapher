@@ -39,37 +39,37 @@ pub struct PointIntersection(pub i64);
 
 impl Default for RepelForce {
     fn default() -> Self {
-        Self(10e7)
+        Self(1e8)
     }
 }
 
 impl Default for SpringStiffness {
     fn default() -> Self {
-        Self(400.0)
+        Self(150.0)
     }
 }
 
 impl Default for SpringNeutralLength {
     fn default() -> Self {
-        Self(70.0)
+        Self(50.0)
     }
 }
 
 impl Default for GravityForce {
     fn default() -> Self {
-        Self(10.0)
+        Self(5.0)
     }
 }
 
 impl Default for DeltaTime {
     fn default() -> Self {
-        Self(0.005)
+        Self(0.01)
     }
 }
 
 impl Default for Damping {
     fn default() -> Self {
-        Self(0.8)
+        Self(0.9)
     }
 }
 
@@ -81,7 +81,7 @@ impl Default for QuadTreeTheta {
 
 impl Default for FreezeThreshold {
     fn default() -> Self {
-        Self(10.0)
+        Self(1.0)
     }
 }
 
