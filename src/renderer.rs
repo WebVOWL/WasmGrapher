@@ -1616,6 +1616,7 @@ impl State {
                     let n = self.num_instances as f32;
                     let i = meta.min(self.num_instances as usize - 1) as f32;
 
+                    #[expect(clippy::cast_sign_loss, reason = "This is handled in the statement")]
                     if self.hovered_index >= 0 && meta == self.hovered_index as usize {
                         0.0
                     } else {
