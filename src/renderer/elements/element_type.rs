@@ -1,7 +1,4 @@
-use super::generic::*;
-use super::owl::*;
-use super::rdf::*;
-use super::rdfs::*;
+use super::{generic::GenericType, owl::OwlType, rdf::RdfType, rdfs::RdfsType};
 use rkyv::{Archive, Deserialize, Serialize};
 use std::fmt::Display;
 use std::num::TryFromIntError;
@@ -18,34 +15,30 @@ pub enum ElementType {
 impl Display for ElementType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ElementType::NoDraw => write!(f, "NoDraw"),
-            // ElementType::Rdf(RdfType::Node(node)) => match node {},
-            ElementType::Rdf(RdfType::Edge(edge)) => edge.fmt(f),
-            ElementType::Rdfs(RdfsType::Node(node)) => node.fmt(f),
-            ElementType::Rdfs(RdfsType::Edge(edge)) => edge.fmt(f),
-            ElementType::Owl(OwlType::Node(node)) => node.fmt(f),
-            ElementType::Owl(OwlType::Edge(edge)) => edge.fmt(f),
-            ElementType::Generic(GenericType::Node(node)) => node.fmt(f),
-            ElementType::Generic(GenericType::Edge(edge)) => edge.fmt(f),
+            Self::NoDraw => write!(f, "NoDraw"),
+            // Self::Rdf(RdfType::Node(node)) => match node {},
+            Self::Rdf(RdfType::Edge(edge)) => edge.fmt(f),
+            Self::Rdfs(RdfsType::Node(node)) => node.fmt(f),
+            Self::Rdfs(RdfsType::Edge(edge)) => edge.fmt(f),
+            Self::Owl(OwlType::Node(node)) => node.fmt(f),
+            Self::Owl(OwlType::Edge(edge)) => edge.fmt(f),
+            Self::Generic(GenericType::Node(node)) => node.fmt(f),
+            Self::Generic(GenericType::Edge(edge)) => edge.fmt(f),
         }
     }
 }
 
-impl TryFrom<ElementType> for i128 {
-    type Error = TryFromIntError;
-
-    fn try_from(value: ElementType) -> Result<Self, Self::Error> {
+impl From<ElementType> for i128 {
+    fn from(value: ElementType) -> Self {
         let out: u32 = value.into();
-        Ok(i128::try_from(out).and_then(|conv| Ok(conv))?)
+        Self::from(out)
     }
 }
 
-impl TryFrom<ElementType> for i64 {
-    type Error = TryFromIntError;
-
-    fn try_from(value: ElementType) -> Result<Self, Self::Error> {
+impl From<ElementType> for i64 {
+    fn from(value: ElementType) -> Self {
         let out: u32 = value.into();
-        Ok(i64::try_from(out).and_then(|conv| Ok(conv))?)
+        Self::from(out)
     }
 }
 
@@ -54,21 +47,21 @@ impl TryFrom<ElementType> for i32 {
 
     fn try_from(value: ElementType) -> Result<Self, Self::Error> {
         let out: u32 = value.into();
-        Ok(i32::try_from(out).and_then(|conv| Ok(conv))?)
+        Self::try_from(out)
     }
 }
 
 impl From<ElementType> for u128 {
     fn from(value: ElementType) -> Self {
         let out: u32 = value.into();
-        out as u128
+        Self::from(out)
     }
 }
 
 impl From<ElementType> for u64 {
     fn from(value: ElementType) -> Self {
         let out: u32 = value.into();
-        out as u64
+        Self::from(out)
     }
 }
 

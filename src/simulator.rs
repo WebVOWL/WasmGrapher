@@ -85,7 +85,7 @@ pub struct Simulator<'a, 'b> {
     dispatcher: Dispatcher<'a, 'b>,
 }
 
-impl<'a, 'b> Simulator<'a, 'b> {
+impl Simulator<'_, '_> {
     pub fn builder() -> SimulatorBuilder {
         SimulatorBuilder::default()
     }
@@ -185,7 +185,7 @@ impl SimulatorBuilder {
     }
 
     /// How strong the spring force should be.
-    pub fn spring_stiffness(mut self, spring_stiffness: f32) -> Self {
+    pub const fn spring_stiffness(mut self, spring_stiffness: f32) -> Self {
         self.spring_stiffness = spring_stiffness;
         self
     }
@@ -196,19 +196,19 @@ impl SimulatorBuilder {
     /// If edge is longer it pulls together.
     ///
     /// Set to `0` if edges should always pull apart.
-    pub fn spring_neutral_length(mut self, neutral_length: f32) -> Self {
+    pub const fn spring_neutral_length(mut self, neutral_length: f32) -> Self {
         self.spring_neutral_length = neutral_length;
         self
     }
 
     /// How strong the pull to the center should be.
-    pub fn gravity_force(mut self, gravity_force: f32) -> Self {
+    pub const fn gravity_force(mut self, gravity_force: f32) -> Self {
         self.gravity_force = gravity_force;
         self
     }
 
     /// How strong nodes should push others away.
-    pub fn repel_force(mut self, repel_force_const: f32) -> Self {
+    pub const fn repel_force(mut self, repel_force_const: f32) -> Self {
         self.repel_force = repel_force_const;
         self
     }
@@ -218,7 +218,7 @@ impl SimulatorBuilder {
     /// `1.0` -> No Damping
     ///
     /// `0.0` -> No Movement
-    pub fn damping(mut self, damping: f32) -> Self {
+    pub const fn damping(mut self, damping: f32) -> Self {
         self.damping = damping;
         self
     }
@@ -229,14 +229,14 @@ impl SimulatorBuilder {
     /// Value should be between 0.0 and 1.0.
     ///
     /// `0.0` -> No approximation -> n^2 brute force
-    pub fn simulation_accuracy(mut self, theta: f32) -> Self {
+    pub const fn simulation_accuracy(mut self, theta: f32) -> Self {
         self.quadtree_theta = theta;
         self
     }
 
     /// Freeze nodes when their velocity falls below `freeze_thresh`.
     /// Set to `-1` to disable
-    pub fn freeze_threshold(mut self, freeze_thresh: f32) -> Self {
+    pub const fn freeze_threshold(mut self, freeze_thresh: f32) -> Self {
         self.freeze_thresh = freeze_thresh;
         self
     }
@@ -249,9 +249,7 @@ impl SimulatorBuilder {
     ///
     /// Panics when delta time is `0` or below
     pub fn delta_time(mut self, delta_time: f32) -> Self {
-        if delta_time <= 0.0 {
-            panic!("delta_time may not be 0 or below!");
-        }
+        assert!(delta_time > 0.0, "delta_time may not be 0 or below!");
         self.delta_time = delta_time;
         self
     }
@@ -259,9 +257,9 @@ impl SimulatorBuilder {
     /// Constructs a instance of `Simulator`
     pub fn build<'a, 'b>(
         self,
-        nodes: Vec<Vec2>,
-        edges: Vec<[u32; 2]>,
-        sizes: Vec<f32>,
+        nodes: &[Vec2],
+        edges: &[[u32; 2]],
+        sizes: &[f32],
     ) -> Simulator<'a, 'b> {
         let mut world = World::new();
         let mut dispatcher = DispatcherBuilder::new()
@@ -300,7 +298,7 @@ impl SimulatorBuilder {
         Simulator { world, dispatcher }
     }
 
-    fn add_ressources(self: Self, world: &mut World) {
+    fn add_ressources(self, world: &mut World) {
         world.insert(RepelForce(self.repel_force));
         world.insert(SpringStiffness(self.spring_stiffness));
         world.insert(SpringNeutralLength(self.spring_neutral_length));
@@ -314,7 +312,7 @@ impl SimulatorBuilder {
         world.insert(PointIntersection::default());
     }
 
-    fn create_entities(world: &mut World, nodes: Vec<Vec2>, edges: Vec<[u32; 2]>, sizes: Vec<f32>) {
+    fn create_entities(world: &mut World, nodes: &[Vec2], edges: &[[u32; 2]], sizes: &[f32]) {
         let mut node_entities = Vec::with_capacity(nodes.len());
 
         // Create node entities
@@ -332,9 +330,9 @@ impl SimulatorBuilder {
 
         // Create edge components between nodes
         let mut edge_components: HashMap<u32, Connects> = HashMap::new();
-        for edge in edges.iter() {
+        for edge in edges {
             if let Some(connections) = edge_components.get_mut(&edge[0]) {
-                connections.targets.push(node_entities[edge[1] as usize])
+                connections.targets.push(node_entities[edge[1] as usize]);
             } else {
                 let new_connects = Connects {
                     targets: vec![node_entities[edge[1] as usize]],

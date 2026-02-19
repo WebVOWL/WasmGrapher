@@ -12,4 +12,5 @@ perf.data
 flamegraph.svg
 lcov.info
 cobertura.xml
-Cargo.lock
+
+.direnv

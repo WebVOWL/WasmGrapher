@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 use winit::platform::web::EventLoopExtWebSys;
 use winit::{
     application::ApplicationHandler,
-    event::*,
+    event::{KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::PhysicalKey,
     window::Window,
@@ -21,6 +21,7 @@ struct App {
 }
 
 impl App {
+    #[expect(clippy::missing_const_for_fn)]
     pub fn new(#[cfg(target_arch = "wasm32")] event_loop: &EventLoop<State>) -> Self {
         #[cfg(target_arch = "wasm32")]
         let proxy = Some(event_loop.create_proxy());
@@ -52,15 +53,24 @@ impl ApplicationHandler<State> for App {
             window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
         }
 
-        let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
+        #[expect(clippy::expect_used)]
+        let window = Arc::new(
+            event_loop
+                .create_window(window_attributes)
+                .expect("creating window should succeed"),
+        );
 
         let graph = GraphDisplayData::demo(); // TODO: load default ontology (maybe FOAF)
 
         #[cfg(not(target_arch = "wasm32"))]
+        #[expect(clippy::expect_used)]
         {
             // If we are not on web we can use pollster to
             // await the state.
-            self.state = Some(pollster::block_on(State::new(window, graph)).unwrap());
+            self.state = Some(
+                pollster::block_on(State::new(window, graph))
+                    .expect("creating state should succeed"),
+            );
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -103,10 +113,7 @@ impl ApplicationHandler<State> for App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        let state = match &mut self.state {
-            Some(canvas) => canvas,
-            None => return,
-        };
+        let Some(state) = &mut self.state else { return };
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -117,7 +124,7 @@ impl ApplicationHandler<State> for App {
             WindowEvent::RedrawRequested => {
                 state.update();
                 match state.render() {
-                    Ok(_) => {
+                    Ok(()) => {
                         // Update frame count
                         // self.dom.fps_counter.update();
                     }
@@ -132,7 +139,7 @@ impl ApplicationHandler<State> for App {
                         event_loop.exit();
                     }
                     Err(e) => {
-                        log::error!("Unable to render {}", e);
+                        log::error!("Unable to render {e}");
                     }
                 }
             }

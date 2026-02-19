@@ -64,9 +64,6 @@
         # https://docs.rs/web-sys/latest/web_sys/#modules
         features=["Document", "Element", "Window"]
 
-[dev-dependencies]
-    grapher-bin={path="grapher-bin"}
-
 [features]
     default=["web", "static"]
     dx12=["wgpu/dx12"]
@@ -104,3 +101,15 @@
 [profile.bench]
     incremental=true
     inherits="release"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+unwrap_used = { level = "deny" }
+expect_used = { level = "deny" }
+too_many_lines = { level = "allow" }
+missing_panics_doc = { level = "allow" }
+missing_errors_doc = { level = "allow" }
+cast_precision_loss = { level = "allow" }
+similar_names = { level = "allow" }
+cast_possible_truncation = { level = "allow" }
