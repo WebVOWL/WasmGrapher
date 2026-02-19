@@ -93,7 +93,14 @@ const HIGHLIGHTED_COLOR = vec3<f32>(1.0, 0.0, 0.0);
 
 @fragment
 fn fs_node_main(in: VertOut) -> @location(0) vec4<f32> {
-    return draw_node_by_type(in.v_element_type, in.v_uv, in.v_shape_dimensions, in.v_hovered);
+    let col = draw_node_by_type(in.v_element_type, in.v_uv, in.v_shape_dimensions, in.v_hovered);
+
+    // Prevent fully transparent fragments from writing to the depth buffer
+    if (col.a < 0.001) {
+        discard;
+    }
+
+    return col;
 }
 
 fn draw_class(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {

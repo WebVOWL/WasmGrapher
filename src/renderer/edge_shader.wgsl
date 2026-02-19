@@ -65,7 +65,7 @@ fn vs_edge_main(in: VertIn) -> VertOut {
     
     let ndc_x = (screen.x / u_view.resolution.x) * 2.0 - 1.0;
     let ndc_y = 1.0 - (screen.y / u_view.resolution.y) * 2.0;
-    out.clip_position = vec4<f32>(ndc_x, ndc_y, 0.0, 1.0);
+    out.clip_position = vec4<f32>(ndc_x, ndc_y, 1.0, 1.0);
 
     // Pass vertex attributes
     out.v_t = in.t_param;

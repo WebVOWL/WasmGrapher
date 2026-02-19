@@ -591,7 +591,13 @@ impl State {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth24Plus,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -629,7 +635,13 @@ impl State {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth24Plus,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -1196,6 +1208,27 @@ impl State {
         self.cardinality_text_buffers = Some(cardinality_buffers);
     }
 
+    fn recreate_depth_texture(&mut self) {
+        // Ensure depth texture uses the exact surface config extent (physical pixels).
+        self.depth_texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("depth texture"),
+            size: wgpu::Extent3d {
+                width: self.config.width,
+                height: self.config.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.depth_format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        self.depth_view = self
+            .depth_texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+    }
+
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             let max_size = self.device.limits().max_texture_dimension_2d;
@@ -1203,6 +1236,9 @@ impl State {
             self.config.height = min(height, max_size);
             self.surface.configure(&self.device, &self.config);
             self.is_surface_configured = true;
+
+            // Recreate the depth texture to match the surface (avoid mismatched extents).
+            self.recreate_depth_texture();
 
             // Initialize glyphon now if not already done.
             if self.font_system.is_none() {
