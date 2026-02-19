@@ -1,7 +1,6 @@
 # Characteristics
 
-[!NOTE]
-
+> [!NOTE]
 > Non-exhaustive
 
 - `Transitive`
@@ -16,18 +15,6 @@
 # Elements (nodes and edges)
 
 This document details the conversion of element enums to number codes for all visualized types.
-
-The following types can _safely_ store the code of an element enum:
-
--   u32
--   u64
--   u128
-
-If no negative numbers are present and the enum's code can fit, the code of an element enum can also be stored in:
-
--   i32
--   i64
--   i128
 
 ## Reserved [`0` .. `9999`]
 
