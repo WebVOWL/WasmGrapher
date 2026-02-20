@@ -593,7 +593,7 @@ impl State {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: true,
+                depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
@@ -637,7 +637,7 @@ impl State {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: true,
+                depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
@@ -801,7 +801,13 @@ impl State {
                 cull_mode: None,
                 ..Default::default()
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth24Plus,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
             cache: None,
@@ -1184,7 +1190,8 @@ impl State {
         let scale = self.window.scale_factor() as f32;
         let menu_attrs = Attrs::new()
             .family(Family::SansSerif)
-            .weight(glyphon::Weight::BOLD);
+            .weight(glyphon::Weight::BOLD)
+            .metadata(self.num_instances as usize + 1);
         let menu_metrics = Metrics::new(14.0 * scale, 14.0 * scale);
 
         let mut buf_freeze = GlyphBuffer::new(&mut font_system, menu_metrics);
@@ -1613,12 +1620,13 @@ impl State {
                 areas,
                 swash_cache,
                 |meta: usize| {
-                    let n = self.num_instances as f32;
                     let i = meta.min(self.num_instances as usize - 1) as f32;
 
                     #[expect(clippy::cast_sign_loss, reason = "This is handled in the statement")]
                     if self.hovered_index >= 0 && meta == self.hovered_index as usize {
                         0.0
+                    } else if meta > self.num_instances as usize {
+                        0.0001
                     } else {
                         (i + 1.0) / (n + 1.0)
                     }
