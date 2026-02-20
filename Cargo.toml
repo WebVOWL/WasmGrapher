@@ -43,6 +43,7 @@
         "parking_lot",
     ]}
     winit="0.30.0"
+    sovs-parser = {git = "https://github.com/WebVOWL/sovs-parser", optional=true}
 
     [dependencies.specs]
         default-features=false
@@ -75,6 +76,7 @@
     web=["wgpu/web", "webgpu"]
     webgl=["wgpu/webgl"]
     webgpu=["wgpu/webgpu"]
+    test-utils=["dep:sovs-parser"]
 
 # Default profile for devs, fast to compile, okay enough to run
 [profile.dev]
@@ -113,3 +115,4 @@ missing_errors_doc = { level = "allow" }
 cast_precision_loss = { level = "allow" }
 similar_names = { level = "allow" }
 cast_possible_truncation = { level = "allow" }
+

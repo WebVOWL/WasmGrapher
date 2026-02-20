@@ -8,6 +8,15 @@ pub enum RdfType {
     Edge(RdfEdge),
 }
 
+impl RdfType {
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> &'static str {
+        match self {
+            Self::Edge(edge) => edge.sovs_kind(),
+        }
+    }
+}
+
 // #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Archive, Deserialize, Serialize)]
 // pub enum RdfNode {}
 
@@ -28,6 +37,15 @@ pub enum RdfType {
 pub enum RdfEdge {
     #[strum(serialize = "is a")]
     RdfProperty,
+}
+
+impl RdfEdge {
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> &'static str {
+        match self {
+            Self::RdfProperty => "rdf:property",
+        }
+    }
 }
 
 impl From<RdfEdge> for u32 {

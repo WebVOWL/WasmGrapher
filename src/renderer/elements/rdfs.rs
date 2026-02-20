@@ -8,6 +8,16 @@ pub enum RdfsType {
     Edge(RdfsEdge),
 }
 
+impl RdfsType {
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> &'static str {
+        match self {
+            Self::Node(node) => node.sovs_kind(),
+            Self::Edge(edge) => edge.sovs_kind(),
+        }
+    }
+}
+
 #[derive(
     Copy,
     Clone,
@@ -29,6 +39,18 @@ pub enum RdfsNode {
     #[strum(serialize = "RDFS Resource")]
     Resource,
     Datatype,
+}
+
+impl RdfsNode {
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> &'static str {
+        match self {
+            Self::Class => "rdfs:class",
+            Self::Literal => "rdfs:literal",
+            Self::Resource => "rdfs:resource",
+            Self::Datatype => "rdfs:datatype",
+        }
+    }
 }
 
 impl From<RdfsNode> for u32 {
@@ -58,6 +80,15 @@ impl From<RdfsNode> for u32 {
 #[strum(serialize_all = "title_case")]
 pub enum RdfsEdge {
     SubclassOf,
+}
+
+impl RdfsEdge {
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> &'static str {
+        match self {
+            Self::SubclassOf => "rdfs:subClassOf",
+        }
+    }
 }
 
 impl From<RdfsEdge> for u32 {

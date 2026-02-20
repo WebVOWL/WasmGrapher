@@ -9,6 +9,17 @@ pub enum OwlType {
     Node(OwlNode),
     Edge(OwlEdge),
 }
+
+impl OwlType {
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> &'static str {
+        match self {
+            Self::Node(node) => node.sovs_kind(),
+            Self::Edge(edge) => edge.sovs_kind(),
+        }
+    }
+}
+
 #[derive(
     Copy,
     Clone,
@@ -34,6 +45,24 @@ pub enum OwlNode {
     IntersectionOf,
     Thing,
     UnionOf,
+}
+
+impl OwlNode {
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> &'static str {
+        match self {
+            Self::AnonymousClass => "anonymous",
+            Self::Class => "owl:class",
+            Self::Complement => "owl:complementOf",
+            Self::DeprecatedClass => "owl:deprecatedClass",
+            Self::ExternalClass => "external",
+            Self::EquivalentClass => "owl:equivalentClass",
+            Self::DisjointUnion => "owl:disjointUnion",
+            Self::IntersectionOf => "owl:intersectionOf",
+            Self::Thing => "owl:thing",
+            Self::UnionOf => "owl:unionOf",
+        }
+    }
 }
 
 impl From<OwlNode> for u32 {
@@ -75,6 +104,21 @@ pub enum OwlEdge {
     InverseOf,
     ObjectProperty,
     ValuesFrom,
+}
+
+impl OwlEdge {
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> &'static str {
+        match self {
+            Self::DatatypeProperty => "owl:datatypeProperty",
+            Self::DisjointWith => "owl:disjointWith",
+            Self::DeprecatedProperty => "owl:deprecatedProperty",
+            Self::ExternalProperty => "external",
+            Self::InverseOf => "owl:inverseOf",
+            Self::ObjectProperty => "owl:objectProperty",
+            Self::ValuesFrom => "owl:valuesFrom",
+        }
+    }
 }
 
 impl From<OwlEdge> for u32 {

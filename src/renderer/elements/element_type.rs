@@ -1,3 +1,5 @@
+use crate::prelude::{OwlEdge, OwlNode};
+
 use super::{generic::GenericType, owl::OwlType, rdf::RdfType, rdfs::RdfsType};
 use rkyv::{Archive, Deserialize, Serialize};
 use std::fmt::Display;
@@ -10,6 +12,38 @@ pub enum ElementType {
     Rdfs(RdfsType),
     Generic(GenericType),
     NoDraw,
+}
+
+impl ElementType {
+    #[must_use]
+    pub const fn is_edge(self) -> bool {
+        match self {
+            Self::Owl(OwlType::Edge(_))
+            | Self::Rdf(RdfType::Edge(_))
+            | Self::Rdfs(RdfsType::Edge(_))
+            | Self::Generic(GenericType::Edge(_)) => true,
+            Self::Owl(OwlType::Node(_))
+            // | Self::Rdf(RdfType::Node(_))
+            | Self::Rdfs(RdfsType::Node(_))
+            | Self::Generic(GenericType::Node(_)) | Self::NoDraw => false,
+            }
+    }
+
+    #[must_use]
+    pub const fn is_node(self) -> bool {
+        !self.is_edge()
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> Option<&'static str> {
+        match self {
+            Self::Owl(owl) => Some(owl.sovs_kind()),
+            Self::Rdf(rdf) => Some(rdf.sovs_kind()),
+            Self::Rdfs(rdfs) => Some(rdfs.sovs_kind()),
+            Self::Generic(generic) => generic.sovs_kind(),
+            Self::NoDraw => None,
+        }
+    }
 }
 
 impl Display for ElementType {
