@@ -169,3 +169,65 @@ impl std::fmt::Display for GraphDisplayData {
         writeln!(f, "}}")
     }
 }
+
+#[cfg(feature = "test-utils")]
+mod test_utils {
+    use super::{ElementType, GraphDisplayData};
+    use sovs_parser::{Properties, SovsError, Specification, SpecificationBuilder};
+
+    impl TryFrom<GraphDisplayData> for Specification {
+        type Error = sovs_parser::SovsError;
+
+        fn try_from(value: GraphDisplayData) -> Result<Self, SovsError> {
+            let mut builder = SpecificationBuilder::new();
+
+            for (i, (label, element)) in value.labels.iter().zip(value.elements).enumerate() {
+                if element.is_node() {
+                    builder.node(i.to_string(), node_properties(label.clone(), element));
+                    continue;
+                }
+
+                #[expect(clippy::expect_used)]
+                let [from, _, to] = value
+                    .edges
+                    .iter()
+                    .find(|[_, edge, _]| *edge == i)
+                    .expect("edge does not exist in edge array");
+
+                builder.edge(
+                    i.to_string(),
+                    from.to_string(),
+                    to.to_string(),
+                    edge_properties(label.clone(), element),
+                );
+            }
+
+            builder.build()
+        }
+    }
+
+    fn node_properties(label: String, element_type: ElementType) -> Properties {
+        let mut properties = Properties::new();
+        if !label.is_empty() {
+            properties.insert("text".to_string(), label);
+        }
+        if let Some(kind) = element_type.sovs_kind() {
+            let kind = kind.to_string();
+            properties.insert("kind".to_string(), kind);
+        }
+        properties
+    }
+
+    fn edge_properties(label: String, element_type: ElementType) -> Properties {
+        let mut properties = Properties::new();
+        if !label.is_empty() {
+            properties.insert("text".to_string(), label);
+        }
+        if let Some(kind) = element_type.sovs_kind() {
+            let kind = kind.to_string();
+            properties.insert("kind".to_string(), kind);
+        }
+
+        properties
+    }
+}

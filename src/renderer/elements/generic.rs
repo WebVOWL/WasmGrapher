@@ -8,6 +8,16 @@ pub enum GenericType {
     Edge(GenericEdge),
 }
 
+impl GenericType {
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> Option<&'static str> {
+        match self {
+            Self::Node(node) => node.sovs_kind(),
+            Self::Edge(edge) => edge.sovs_kind(),
+        }
+    }
+}
+
 #[derive(
     Copy,
     Clone,
@@ -25,6 +35,17 @@ pub enum GenericType {
 pub enum GenericNode {
     #[strum(serialize = "Generic Node")]
     Generic,
+}
+
+impl GenericNode {
+    #[expect(
+        clippy::unused_self,
+        reason = "keeping self might make future refactoring easier"
+    )]
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> Option<&'static str> {
+        None
+    }
 }
 
 impl From<GenericNode> for u32 {
@@ -52,6 +73,17 @@ impl From<GenericNode> for u32 {
 pub enum GenericEdge {
     #[strum(serialize = "Generic Edge")]
     Generic,
+}
+
+impl GenericEdge {
+    #[expect(
+        clippy::unused_self,
+        reason = "keeping self might make future refactoring easier"
+    )]
+    #[cfg(feature = "test-utils")]
+    pub(crate) const fn sovs_kind(self) -> Option<&'static str> {
+        None
+    }
 }
 
 impl From<GenericEdge> for u32 {

@@ -49,7 +49,7 @@ fn vs_main(
     let ndc_x = (screen_pos.x / view.resolution.x) * 2.0 - 1.0;
     let ndc_y = 1.0 - (screen_pos.y / view.resolution.y) * 2.0;
 
-    out.clip_position = vec4<f32>(ndc_x, ndc_y, 0.0, 1.0);
+    out.clip_position = vec4<f32>(ndc_x, ndc_y, 0.0001, 1.0);
     out.uv = input.position; // -1 to 1
     return out;
 }
@@ -77,13 +77,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     // Styling
-    var color = vec3<f32>(0.2, 0.2, 0.2); // Dark grey default
-    var alpha = 0.8;
+    var color = vec3<f32>(0.7, 0.7, 0.7); // Light grey default
+    let alpha = 1.0;
 
     // Hover effect
     if (segment == menu.hovered_segment) {
         color = vec3<f32>(0.3, 0.5, 0.9); // Blue highlight
-        alpha = 0.95;
     }
 
     // Separator line
