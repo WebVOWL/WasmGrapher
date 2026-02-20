@@ -16,7 +16,7 @@ use strum::EnumIter;
 )]
 #[strum(serialize_all = "title_case")]
 pub enum Characteristic {
-    Transitive,
+    TransitiveProperty,
     FunctionalProperty,
     InverseFunctionalProperty,
     ReflexiveProperty,
