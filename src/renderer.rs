@@ -340,24 +340,35 @@ impl State {
         font_system.db_mut().set_sans_serif_family("DejaVu Sans");
 
         // iterate over labels and update the width of corresponding rectangle nodes
-        for (i, label_text) in labels.clone().iter().enumerate() {
+        for i in 0..labels.len() {
             // Set fixed size for disjoint property
             match elements.get(i) {
                 Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) => {
                     node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
-                    labels[i] = String::new();
+                    labels[i].clear();
                     continue;
                 }
                 Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))) => {
                     node_shapes[i] = NodeShape::Rectangle { w: 1.0, h: 1.0 };
-                    labels[i] = String::new();
+                    labels[i].clear();
                     continue;
                 }
-                _ => (),
+                _ => {}
             }
-            // check if the node is a rectangle and get a mutable reference to its properties
-            if label_text.is_empty() {
+
+            if labels[i].is_empty() {
                 continue;
+            }
+
+            let label_text: &str = labels[i].as_str();
+
+            // Use longest string among label and characteristics
+            let mut measure_text: &str = label_text;
+            if let Some(ch_text_ref) = characteristics.get(&i)
+                && let Some(ch_longest_line) = ch_text_ref.split('\n').max_by_key(|s| s.len())
+                && ch_longest_line.len() > measure_text.len()
+            {
+                measure_text = ch_longest_line;
             }
 
             // temporary buffer to measure the text
@@ -367,7 +378,7 @@ impl State {
 
             temp_buffer.set_text(
                 &mut font_system,
-                label_text,
+                measure_text,
                 &Attrs::new(),
                 Shaping::Advanced,
             );
@@ -379,18 +390,22 @@ impl State {
                 .fold(0.0, f32::max);
 
             temp_buffer.shape_until_scroll(&mut font_system, false);
+
             let mut capped_width = 44.0 * scale;
             let mut max_lines = 0;
+
             match node_shapes.get_mut(i) {
                 Some(NodeShape::Rectangle { w, .. }) => {
                     let new_width_pixels = text_width;
                     *w = f32::min(new_width_pixels / (capped_width * 2.0) * 1.05, 2.0);
+
                     if matches!(
                         elements[i],
                         ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
                     ) {
                         continue;
                     }
+
                     max_lines = 1;
                     capped_width *= 4.0;
                 }
@@ -417,28 +432,36 @@ impl State {
                 }
                 None => {}
             }
-            let current_text = label_text.clone();
 
             temp_buffer.set_wrap(&mut font_system, glyphon::Wrap::Word);
             temp_buffer.set_size(&mut font_system, Some(capped_width), None);
 
-            // Initial shape
             temp_buffer.set_text(
                 &mut font_system,
-                &current_text,
+                label_text,
                 &Attrs::new(),
                 Shaping::Advanced,
             );
             temp_buffer.shape_until_scroll(&mut font_system, false);
 
             if line_count(&temp_buffer) > max_lines {
-                let mut low = 0;
-                let mut high = current_text.len();
-                let mut truncated = current_text.clone();
+                let current_text = label_text;
 
-                while low < high {
+                let mut cuts: Vec<usize> = current_text.char_indices().map(|(i, _)| i).collect();
+                cuts.push(current_text.len());
+
+                let mut low = 0usize;
+                let mut high = cuts.len().saturating_sub(1);
+                let mut best = String::new();
+
+                // Small padding
+                let safety_pad = 10.0 * scale;
+
+                while low <= high {
                     let mid = usize::midpoint(low, high);
-                    let candidate = format!("{}…", &current_text[..mid]);
+                    let cut = cuts[mid];
+
+                    let candidate = format!("{}…", &current_text[..cut]);
 
                     temp_buffer.set_text(
                         &mut font_system,
@@ -447,17 +470,32 @@ impl State {
                         Shaping::Advanced,
                     );
                     temp_buffer.shape_until_scroll(&mut font_system, false);
+
                     let lines = line_count(&temp_buffer);
 
-                    if lines > max_lines {
-                        high = mid;
-                    } else {
-                        truncated.clone_from(&candidate);
+                    let max_w = temp_buffer
+                        .layout_runs()
+                        .map(|run| run.line_w)
+                        .fold(0.0, f32::max);
+
+                    let fits = lines <= max_lines && max_w <= (capped_width - safety_pad);
+
+                    if fits {
+                        best = candidate;
                         low = mid + 1;
+                    } else {
+                        if mid == 0 {
+                            break;
+                        }
+                        high = mid - 1;
                     }
                 }
 
-                labels[i] = truncated;
+                labels[i] = if best.is_empty() {
+                    "…".to_string()
+                } else {
+                    best
+                };
             }
         }
 
@@ -1952,49 +1990,66 @@ impl State {
         if let Some(font_system) = self.font_system.as_mut() {
             let scale = self.window.scale_factor() as f32;
 
-            for (i, label_text) in self.labels.clone().iter().enumerate() {
-                if matches!(
-                    self.elements.get(i),
-                    Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)))
-                ) {
-                    node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
-                    self.labels[i] = String::new();
-                    continue;
+            // iterate over labels and update the width of corresponding rectangle nodes
+            for i in 0..self.labels.len() {
+                match self.elements.get(i) {
+                    Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) => {
+                        node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
+                        self.labels[i].clear();
+                        continue;
+                    }
+                    Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))) => {
+                        node_shapes[i] = NodeShape::Rectangle { w: 1.0, h: 1.0 };
+                        self.labels[i].clear();
+                        continue;
+                    }
+                    _ => {}
                 }
-                if matches!(
-                    self.elements.get(i),
-                    Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf)))
-                ) {
-                    node_shapes[i] = NodeShape::Rectangle { w: 1.0, h: 1.0 };
-                    self.labels[i] = String::new();
-                    continue;
-                }
-                if label_text.is_empty() {
+
+                if self.labels[i].is_empty() {
                     continue;
                 }
 
+                let label_text: &str = self.labels[i].as_str();
+
+                // Use longest string among label and characteristics
+                let mut measure_text: &str = label_text;
+                if let Some(ch_text_ref) = self.characteristics.get(&i)
+                    && let Some(ch_longest_line) = ch_text_ref.split('\n').max_by_key(|s| s.len())
+                    && ch_longest_line.len() > measure_text.len()
+                {
+                    measure_text = ch_longest_line;
+                }
+
+                // temporary buffer to measure the text
                 let mut temp_buffer =
                     glyphon::Buffer::new(font_system, Metrics::new(12.0 * scale, 12.0 * scale));
-                temp_buffer.set_text(font_system, label_text, &Attrs::new(), Shaping::Advanced);
 
+                temp_buffer.set_text(font_system, measure_text, &Attrs::new(), Shaping::Advanced);
+
+                // Compute max line width using layout runs
                 let text_width = temp_buffer
                     .layout_runs()
                     .map(|run| run.line_w)
                     .fold(0.0, f32::max);
+
                 temp_buffer.shape_until_scroll(font_system, false);
 
                 let mut capped_width = 44.0 * scale;
                 let mut max_lines = 0;
+
                 match node_shapes.get_mut(i) {
                     Some(NodeShape::Rectangle { w, .. }) => {
                         let new_width_pixels = text_width;
                         *w = f32::min(new_width_pixels / (capped_width * 2.0) * 1.05, 2.0);
+
                         if matches!(
                             self.elements[i],
                             ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
                         ) {
                             continue;
                         }
+
                         max_lines = 1;
                         capped_width *= 4.0;
                     }
@@ -2023,20 +2078,32 @@ impl State {
                 }
 
                 // Truncation logic
-                let current_text = label_text.clone();
                 temp_buffer.set_wrap(font_system, glyphon::Wrap::Word);
                 temp_buffer.set_size(font_system, Some(capped_width), None);
-                temp_buffer.set_text(font_system, &current_text, &Attrs::new(), Shaping::Advanced);
+
+                temp_buffer.set_text(font_system, label_text, &Attrs::new(), Shaping::Advanced);
                 temp_buffer.shape_until_scroll(font_system, false);
 
-                if temp_buffer.layout_runs().count() > max_lines {
-                    let mut low = 0;
-                    let mut high = current_text.len();
-                    let mut truncated = current_text.clone();
+                if line_count(&temp_buffer) > max_lines {
+                    let current_text = label_text;
 
-                    while low < high {
+                    let mut cuts: Vec<usize> =
+                        current_text.char_indices().map(|(i, _)| i).collect();
+                    cuts.push(current_text.len());
+
+                    let mut low = 0usize;
+                    let mut high = cuts.len().saturating_sub(1);
+                    let mut best = String::new();
+
+                    // Small padding
+                    let safety_pad = 10.0 * scale;
+
+                    while low <= high {
                         let mid = usize::midpoint(low, high);
-                        let candidate = format!("{}…", &current_text[..mid]);
+                        let cut = cuts[mid];
+
+                        let candidate = format!("{}…", &current_text[..cut]);
+
                         temp_buffer.set_text(
                             font_system,
                             &candidate,
@@ -2044,14 +2111,32 @@ impl State {
                             Shaping::Advanced,
                         );
                         temp_buffer.shape_until_scroll(font_system, false);
-                        if temp_buffer.layout_runs().count() > max_lines {
-                            high = mid;
-                        } else {
-                            truncated.clone_from(&candidate);
+
+                        let lines = line_count(&temp_buffer);
+
+                        let max_w = temp_buffer
+                            .layout_runs()
+                            .map(|run| run.line_w)
+                            .fold(0.0, f32::max);
+
+                        let fits = lines <= max_lines && max_w <= (capped_width - safety_pad);
+
+                        if fits {
+                            best = candidate;
                             low = mid + 1;
+                        } else {
+                            if mid == 0 {
+                                break;
+                            }
+                            high = mid - 1;
                         }
                     }
-                    self.labels[i] = truncated;
+
+                    self.labels[i] = if best.is_empty() {
+                        "…".to_string()
+                    } else {
+                        best
+                    };
                 }
             }
         }
