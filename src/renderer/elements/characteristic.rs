@@ -17,7 +17,7 @@ use strum::EnumIter;
 #[strum(serialize_all = "title_case")]
 pub enum Characteristic {
     #[strum(serialize = "transitive")]
-    Transitive,
+    TransitiveProperty,
     #[strum(serialize = "functional")]
     FunctionalProperty,
     #[strum(serialize = "inverse functional")]
