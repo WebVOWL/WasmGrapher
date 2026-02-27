@@ -13,6 +13,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
+    ## rust cache includes toolchain in key
+    - run: rustup toolchain install
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: true
+        cache-workspace-crates: true
     - name: Run tests
       run: cargo test --verbose --workspace --all-features
