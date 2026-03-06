@@ -294,7 +294,7 @@ impl SimulatorBuilder {
         dispatcher.setup(&mut world);
         Self::create_entities(&mut world, nodes, edges, sizes);
         world.maintain();
-        Self::build_degrees(&mut world);
+        Self::build_degrees(&world);
         self.add_ressources(&mut world);
 
         Simulator { world, dispatcher }
@@ -352,7 +352,7 @@ impl SimulatorBuilder {
     }
 
     // Add degree of node entities
-    pub fn build_degrees(world: &mut specs::World) {
+    pub fn build_degrees(world: &specs::World) {
         let entities = world.entities();
         let connections = world.read_storage::<Connects>();
         let mut degrees: HashMap<specs::Entity, u32> = HashMap::new();

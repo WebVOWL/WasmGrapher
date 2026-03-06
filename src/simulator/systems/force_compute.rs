@@ -210,10 +210,9 @@ impl<'a> System<'a> for ComputeEdgeForces {
                         let force_magnitude =
                             spring_stiffness.0 * (direction_vec.length() - spring_neutral_length.0);
 
-                        const YEET_THRESHOLD: f32 = 200.0;
-                        let du = degrees.get(rb1).map(|d| d.0).unwrap_or(1.0);
-                        let dv = degrees.get(*rb2).map(|d| d.0).unwrap_or(1.0);
-                        let w = if (du + dv > YEET_THRESHOLD) {
+                        let du = degrees.get(rb1).map_or(1.0, |d| d.0);
+                        let dv = degrees.get(*rb2).map_or(1.0, |d| d.0);
+                        let w = if (du + dv > 200.0) {
                             1.0 / (du * dv).sqrt().max(1.0)
                         } else {
                             1.0

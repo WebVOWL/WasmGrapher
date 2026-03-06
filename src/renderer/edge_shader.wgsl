@@ -50,6 +50,12 @@ fn bezier_point(p0: vec2<f32>, ctrl: vec2<f32>, p2: vec2<f32>, t: f32) -> vec2<f
     return t1 * t1 * p0 + 2.0 * t1 * t * ctrl + t * t * p2;
 }
 
+fn bezier_tangent(p0: vec2<f32>, ctrl: vec2<f32>, p2: vec2<f32>, t: f32) -> vec2<f32> {
+    let t1 = 1.0 - t;
+    // Derivative of quadratic bezier
+    return 2.0 * t1 * (ctrl - p0) + 2.0 * t * (p2 - ctrl);
+}
+
 @vertex
 fn vs_edge_main(in: VertIn) -> VertOut {
     var out: VertOut;
@@ -109,8 +115,19 @@ fn fs_edge_main(in: VertOut) -> @location(0) vec4<f32> {
 
     // Compute center point on the curve for this fragment's t
     let center_pos = bezier_point(in.v_curve_start, in.v_ctrl, in.v_curve_end, t);
-    let dist_to_center = length(px - center_pos);
-
+    
+    let current_tangent = bezier_tangent(in.v_curve_start, in.v_ctrl, in.v_curve_end, t);
+    var curve_perp = vec2<f32>(0.0, 1.0);
+    let tangent_len = length(current_tangent);
+    
+    // Safeguard against zero-length tangents
+    if (tangent_len > 1e-6) {
+        let norm_tangent = current_tangent / tangent_len;
+        curve_perp = vec2<f32>(-norm_tangent.y, norm_tangent.x);
+    }
+    
+    // Calculate cross-track distance, ignoring longitudinal parametric drift
+    let dist_to_center = abs(dot(px - center_pos, curve_perp));
     // Convert pixel-space constants to world-space
     let line_thickness_world = LINE_THICKNESS;
     let aa_softness_world = AA_SOFTNESS / u_view.zoom;
