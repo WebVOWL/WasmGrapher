@@ -8,7 +8,7 @@ use crate::{
         components::{
             edges::Connects,
             forces::NodeForces,
-            nodes::{Mass, NodeState, Position, Velocity},
+            nodes::{Degree, Mass, NodeState, Position, Velocity},
         },
         ressources::{
             events::SimulatorEvent,
@@ -293,6 +293,8 @@ impl SimulatorBuilder {
 
         dispatcher.setup(&mut world);
         Self::create_entities(&mut world, nodes, edges, sizes);
+        world.maintain();
+        Self::build_degrees(&mut world);
         self.add_ressources(&mut world);
 
         Simulator { world, dispatcher }
@@ -346,6 +348,25 @@ impl SimulatorBuilder {
         for (src, targets) in edge_components {
             let node = node_entities[src as usize];
             updater.insert(node, targets);
+        }
+    }
+
+    // Add degree of node entities
+    pub fn build_degrees(world: &mut specs::World) {
+        let entities = world.entities();
+        let connections = world.read_storage::<Connects>();
+        let mut degrees: HashMap<specs::Entity, u32> = HashMap::new();
+
+        for (src, c) in (&entities, &connections).join() {
+            *degrees.entry(src).or_insert(0) += c.targets.len() as u32;
+            for &dst in &c.targets {
+                *degrees.entry(dst).or_insert(0) += 1;
+            }
+        }
+
+        let mut degree_storage = world.write_storage::<Degree>();
+        for (e, d) in degrees {
+            degree_storage.insert(e, Degree(d.max(1) as f32)).ok();
         }
     }
 }

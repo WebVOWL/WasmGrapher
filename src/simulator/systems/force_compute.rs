@@ -4,7 +4,7 @@ use crate::{
         components::{
             edges::Connects,
             forces::NodeForces,
-            nodes::{Mass, NodeState, Position, Velocity},
+            nodes::{Degree, Mass, NodeState, Position, Velocity},
         },
         ressources::simulator_vars::{
             DeltaTime, GravityForce, QuadTreeTheta, RepelForce, SpringNeutralLength,
@@ -180,6 +180,7 @@ impl<'a> System<'a> for ComputeEdgeForces {
         ReadStorage<'a, Position>,
         Read<'a, SpringStiffness>,
         Read<'a, SpringNeutralLength>,
+        ReadStorage<'a, Degree>,
     );
 
     fn run(
@@ -191,6 +192,7 @@ impl<'a> System<'a> for ComputeEdgeForces {
             positions,
             spring_stiffness,
             spring_neutral_length,
+            degrees,
         ): Self::SystemData,
     ) {
         let positions_storage = &positions;
@@ -208,8 +210,17 @@ impl<'a> System<'a> for ComputeEdgeForces {
                         let force_magnitude =
                             spring_stiffness.0 * (direction_vec.length() - spring_neutral_length.0);
 
+                        const YEET_THRESHOLD: f32 = 200.0;
+                        let du = degrees.get(rb1).map(|d| d.0).unwrap_or(1.0);
+                        let dv = degrees.get(*rb2).map(|d| d.0).unwrap_or(1.0);
+                        let w = if (du + dv > YEET_THRESHOLD) {
+                            1.0 / (du * dv).sqrt().max(1.0)
+                        } else {
+                            1.0
+                        };
+
                         let spring_force =
-                            direction_vec.normalize_or(Vec2::ZERO) * -force_magnitude;
+                            (direction_vec.normalize_or(Vec2::ZERO) * -force_magnitude) * w;
 
                         acc.push((rb1, -spring_force));
                         acc.push((*rb2, spring_force));

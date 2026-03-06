@@ -36,3 +36,7 @@ impl NodeState {
         self.fixed || self.dragged
     }
 }
+
+#[derive(Component)]
+#[storage(VecStorage)]
+pub struct Degree(pub f32);
