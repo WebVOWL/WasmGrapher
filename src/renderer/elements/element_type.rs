@@ -21,11 +21,12 @@ impl ElementType {
             Self::Owl(OwlType::Edge(_))
             | Self::Rdf(RdfType::Edge(_))
             | Self::Rdfs(RdfsType::Edge(_))
-            | Self::Generic(GenericType::Edge(_)) => true,
+            | Self::Generic(GenericType::Edge(_))
+            | Self::NoDraw  => true,
             Self::Owl(OwlType::Node(_))
             // | Self::Rdf(RdfType::Node(_))
             | Self::Rdfs(RdfsType::Node(_))
-            | Self::Generic(GenericType::Node(_)) | Self::NoDraw => false,
+            | Self::Generic(GenericType::Node(_)) => false,
             }
     }
 
