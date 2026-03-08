@@ -35,6 +35,8 @@
     log="0.4.0"
     rayon="1.10.0"
     rkyv="0.8.12"
+    smallvec={version="1.15.1", features=["union"]}
+    sovs-parser={git="https://github.com/WebVOWL/sovs-parser", optional=true}
     strum={version="0.27", features=["derive"]}
     web-time="1.1.0"
     wgpu={version="27.0.1", default-features=false, features=[
@@ -43,7 +45,6 @@
         "parking_lot",
     ]}
     winit="0.30.0"
-    sovs-parser = {git = "https://github.com/WebVOWL/sovs-parser", optional=true}
 
     [dependencies.specs]
         default-features=false
@@ -75,7 +76,11 @@
     metal=["wgpu/metal"]
     native=["dx12", "metal", "vulkan", "gles"]
     static=["wgpu/static-dxc"]
+    test-utils=["dep:sovs-parser"]
     vulkan=["wgpu/vulkan"]
+    web=["wgpu/web", "webgpu"]
+    webgl=["wgpu/webgl"]
+    webgpu=["wgpu/webgpu"]
 
 [[bench]]
     harness=false
@@ -84,9 +89,6 @@
 [[bench]]
     harness=false
     name="simulator"
-    webgl=["wgpu/webgl"]
-    webgpu=["wgpu/webgpu"]
-    test-utils=["dep:sovs-parser"]
 
 # Default profile for devs, fast to compile, okay enough to run
 [profile.dev]
@@ -115,14 +117,13 @@
     inherits="release"
 
 [lints.clippy]
-pedantic = { level = "deny", priority = -1 }
-nursery = { level = "deny", priority = -1 }
-unwrap_used = { level = "deny" }
-expect_used = { level = "deny" }
-too_many_lines = { level = "allow" }
-missing_panics_doc = { level = "allow" }
-missing_errors_doc = { level = "allow" }
-cast_precision_loss = { level = "allow" }
-similar_names = { level = "allow" }
-cast_possible_truncation = { level = "allow" }
-
+    cast_possible_truncation={level="allow"}
+    cast_precision_loss={level="allow"}
+    expect_used={level="deny"}
+    missing_errors_doc={level="allow"}
+    missing_panics_doc={level="allow"}
+    nursery={level="deny", priority=-1}
+    pedantic={level="deny", priority=-1}
+    similar_names={level="allow"}
+    too_many_lines={level="allow"}
+    unwrap_used={level="deny"}
