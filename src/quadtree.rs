@@ -581,6 +581,6 @@ mod test {
         assert!(qt.delete_point(n2_pos).is_ok());
         assert!(qt.children.len() == 1);
         assert!(qt.delete_point(n1_pos).is_ok());
-        assert!(qt.children.len() == 0);
+        assert!(qt.children.is_empty());
     }
 }
