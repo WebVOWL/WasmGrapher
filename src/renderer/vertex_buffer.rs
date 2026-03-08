@@ -10,7 +10,7 @@ use crate::renderer::{
 };
 
 // Number of segments to divide each Bézier curve into for strip generation
-const BEZIER_SEGMENTS: usize = 24;
+const BEZIER_SEGMENTS: usize = 32;
 
 // --- Uniforms ---
 #[repr(C)]
@@ -403,7 +403,8 @@ pub fn build_line_and_arrow_vertices(
             let perp = [-tangent[1], tangent[0]];
 
             // push left and right vertices for the strip
-            let thickness = LINE_THICKNESS * zoom;
+            let thickness = (LINE_THICKNESS / 2.0 + 3.0) * zoom;
+
             let left = [
                 perp[0].mul_add(thickness, point[0]),
                 perp[1].mul_add(thickness, point[1]),
