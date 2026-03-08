@@ -59,13 +59,12 @@ impl<'a> System<'a> for QuadTreeConstructor {
         }
 
         let dir = max - min;
-        let boundary = BoundingBox2D::new((dir / 2.0) + min, dir[0], dir[1]);
-        let mut new_tree = QuadTree::with_capacity(boundary, count);
+        quadtree.clear();
+        quadtree.boundary = BoundingBox2D::new((dir / 2.0) + min, dir[0], dir[1]);
 
         for (position, mass) in (&positions, &masses).join() {
-            new_tree.insert(position.0, mass.0);
+            quadtree.insert(position.0, mass.0);
         }
-        *quadtree = new_tree;
     }
 }
 
@@ -86,6 +85,7 @@ pub struct Simulator<'a, 'b> {
 }
 
 impl Simulator<'_, '_> {
+    #[must_use]
     pub fn builder() -> SimulatorBuilder {
         SimulatorBuilder::default()
     }

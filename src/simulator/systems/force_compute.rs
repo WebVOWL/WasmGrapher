@@ -18,25 +18,7 @@ use specs::{Entities, ParJoin, Read, ReadExpect, ReadStorage, System, WriteStora
 
 pub struct ComputeNodeForce;
 
-impl ComputeNodeForce {
-    /// Computes the repel force between two nodes.
-    fn repel_force(pos1: Vec2, pos2: Vec2, mass1: f32, mass2: f32, repel_force: f32) -> Vec2 {
-        let dir_vec = pos2 - pos1;
-        let length_sqr = dir_vec.length_squared();
-        if length_sqr == 0.0 {
-            return Vec2::ZERO;
-        }
-
-        let f = -repel_force * (mass1 * mass2).abs() / length_sqr;
-        let dir_vec_normalized = dir_vec.normalize_or(Vec2::ZERO);
-        let force = dir_vec_normalized * f;
-
-        force.clamp(
-            Vec2::new(-100_000.0, -100_000.0),
-            Vec2::new(100_000.0, 100_000.0),
-        )
-    }
-}
+impl ComputeNodeForce {}
 
 impl<'a> System<'a> for ComputeNodeForce {
     type SystemData = (
@@ -67,30 +49,7 @@ impl<'a> System<'a> for ComputeNodeForce {
                     node_forces.0 = Vec2::ZERO;
                     return;
                 }
-
-                let node_approximations = quadtree.stack(pos.0, theta.0);
-
-                node_forces.0 = Vec2::ZERO;
-
-                for node_approximation in node_approximations {
-                    node_forces.0 += Self::repel_force(
-                        pos.0,
-                        node_approximation.position(),
-                        mass.0,
-                        node_approximation.mass(),
-                        repel_force.0,
-                    );
-                    // info!(
-                    //     "(CNF) [{0}] f: {1} | p: {2} | nap: {3} | m: {4} | nam: {5} | Rrf: {6}",
-                    //     entity.id(),
-                    //     node_forces.0,
-                    //     pos.0,
-                    //     node_approximation.position(),
-                    //     mass.0,
-                    //     node_approximation.mass(),
-                    //     repel_force.0
-                    // );
-                }
+                node_forces.0 = quadtree.barnes_hut(pos.0, mass.0, theta.0, repel_force.0);
             });
     }
 }
@@ -120,16 +79,6 @@ impl<'a> System<'a> for ComputeGravityForce {
                 }
 
                 force.0 += -pos.0 * mass.0 * gravity_force.0;
-                // info!(
-                //     "(CGF) [{0}] f: {1} | p: {2} | m: {3} | g: {4} | np: {5}",
-                //     entity.id(),
-                //     force.0,
-                //     pos.0,
-                //     mass.0,
-                //     gravity_force.0,
-                //     // dist_to_center,
-                //     norm_pos
-                // );
             });
     }
 }
@@ -158,14 +107,6 @@ impl<'a> System<'a> for ApplyNodeForce {
                 }
 
                 velocity.0 += force.0 / mass.0 * delta_time.0;
-                // info!(
-                //     "(ANF) [{0}] v: {1} | f: {2} | m: {3} | d: {4}",
-                //     entity.id(),
-                //     velocity.0,
-                //     force.0,
-                //     mass.0,
-                //     delta_time.0
-                // );
             });
     }
 }
