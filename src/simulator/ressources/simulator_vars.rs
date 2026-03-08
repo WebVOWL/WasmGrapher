@@ -2,7 +2,9 @@
 
 use glam::Vec2;
 
-/// How strong nodes should push others away.
+/// The magnitude of the repulsive force between two bodies (the Coulomb constant)
+///
+/// Determines how strongly nodes should push others away.
 pub struct RepelForce(pub f32);
 
 /// How strong the edge force should be.
