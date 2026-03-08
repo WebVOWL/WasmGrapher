@@ -65,6 +65,9 @@
         # https://docs.rs/web-sys/latest/web_sys/#modules
         features=["Document", "Element", "Window"]
 
+[dev-dependencies]
+    criterion={version="0.8.2", features=["html_reports"]}
+
 [features]
     default=["web", "static"]
     dx12=["wgpu/dx12"]
@@ -73,7 +76,14 @@
     native=["dx12", "metal", "vulkan", "gles"]
     static=["wgpu/static-dxc"]
     vulkan=["wgpu/vulkan"]
-    web=["wgpu/web", "webgpu"]
+
+[[bench]]
+    harness=false
+    name="quadtree"
+
+[[bench]]
+    harness=false
+    name="simulator"
     webgl=["wgpu/webgl"]
     webgpu=["wgpu/webgpu"]
     test-utils=["dep:sovs-parser"]
