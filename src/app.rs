@@ -2,9 +2,9 @@ use super::renderer::State;
 use crate::graph_data::GraphDisplayData;
 use crate::prelude::ElementType;
 use std::sync::Arc;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 use winit::platform::web::EventLoopExtWebSys;
 use winit::{
     application::ApplicationHandler,
@@ -15,19 +15,20 @@ use winit::{
 };
 
 struct App {
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_family = "wasm", target_os = "unknown"))]
     proxy: Option<winit::event_loop::EventLoopProxy<State>>,
     state: Option<State>,
 }
 
 impl App {
-    #[expect(clippy::missing_const_for_fn)]
-    pub fn new(#[cfg(target_arch = "wasm32")] event_loop: &EventLoop<State>) -> Self {
-        #[cfg(target_arch = "wasm32")]
+    pub fn new(
+        #[cfg(all(target_family = "wasm", target_os = "unknown"))] event_loop: &EventLoop<State>,
+    ) -> Self {
+        #[cfg(all(target_family = "wasm", target_os = "unknown"))]
         let proxy = Some(event_loop.create_proxy());
         Self {
             state: None,
-            #[cfg(target_arch = "wasm32")]
+            #[cfg(all(target_family = "wasm", target_os = "unknown"))]
             proxy,
         }
     }
@@ -35,10 +36,10 @@ impl App {
 
 impl ApplicationHandler<State> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        #[allow(unused_mut)]
+        #[allow(unused_mut, reason = "Used on wasm targets")]
         let mut window_attributes = Window::default_attributes();
 
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_family = "wasm", target_os = "unknown"))]
         {
             use wasm_bindgen::JsCast;
             use web_sys::wasm_bindgen::UnwrapThrowExt;
@@ -53,7 +54,6 @@ impl ApplicationHandler<State> for App {
             window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
         }
 
-        #[expect(clippy::expect_used)]
         let window = Arc::new(
             event_loop
                 .create_window(window_attributes)
@@ -62,18 +62,16 @@ impl ApplicationHandler<State> for App {
 
         let graph = GraphDisplayData::demo(); // TODO: load default ontology (maybe FOAF)
 
-        #[cfg(not(target_arch = "wasm32"))]
-        #[expect(clippy::expect_used)]
+        #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
         {
-            // If we are not on web we can use pollster to
-            // await the state.
+            // If we are not on web we can use pollster to await the state.
             self.state = Some(
                 pollster::block_on(State::new(window, graph))
                     .expect("creating state should succeed"),
             );
         }
 
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_family = "wasm", target_os = "unknown"))]
         {
             // Run the future asynchronously and use the
             // proxy to send the results to the event loop
@@ -93,10 +91,9 @@ impl ApplicationHandler<State> for App {
         }
     }
 
-    #[allow(unused_mut)]
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: State) {
         // This is where proxy.send_event() ends up
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_family = "wasm", target_os = "unknown"))]
         {
             event.window.request_redraw();
             event.resize(
@@ -168,20 +165,20 @@ impl ApplicationHandler<State> for App {
 pub fn run() -> anyhow::Result<()> {
     let event_loop: EventLoop<State> = EventLoop::with_user_event().build()?;
     let mut app = App::new(
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_family = "wasm", target_os = "unknown"))]
         &event_loop,
     );
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
     event_loop.run_app(&mut app)?;
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_family = "wasm", target_os = "unknown"))]
     event_loop.spawn_app(app);
 
     Ok(())
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 #[wasm_bindgen(js_name = initRender)]
 pub fn init_render() -> Result<(), wasm_bindgen::JsValue> {
     console_error_panic_hook::set_once();

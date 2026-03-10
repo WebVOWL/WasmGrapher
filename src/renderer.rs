@@ -30,12 +30,12 @@ use log::info;
 use specs::{Join, WorldExt};
 use std::{cmp::min, collections::HashMap, collections::HashSet, sync::Arc};
 use vertex_buffer::{MenuUniforms, NodeInstance, VERTICES, Vertex, ViewUniforms};
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 use wasm_bindgen::prelude::*;
 use web_time::Instant;
 use wgpu::util::DeviceExt;
 use winit::event::MouseButton;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 use winit::platform::web::EventLoopExtWebSys;
 use winit::{dpi::PhysicalPosition, event::MouseScrollDelta};
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
@@ -55,7 +55,7 @@ pub struct RadialMenuState {
     reason = "i agree, but refactoring seems like a lot of effort"
 )]
 pub struct State {
-    // #[cfg(target_arch = "wasm32")]
+    // #[cfg(all(target_family = "wasm", target_os = "unknown"))]
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -120,7 +120,6 @@ pub struct State {
     radial_menu_pipeline: wgpu::RenderPipeline,
     radial_menu_bind_group: wgpu::BindGroup,
     radial_menu_uniform_buffer: wgpu::Buffer,
-    #[expect(clippy::struct_field_names)]
     radial_menu_state: RadialMenuState,
 
     // Depth
@@ -700,7 +699,6 @@ impl State {
 
         let mut solitary_edges: Vec<[usize; 3]> = vec![];
         for [start, center, end] in &edges {
-            #[expect(clippy::unwrap_used)]
             let num_neighbors = neighbor_map
                 .get(&(usize::min(*start, *end), usize::max(*start, *end)))
                 .unwrap()
@@ -1762,7 +1760,6 @@ impl State {
                 self.viewport.as_ref(),
                 self.text_renderer.as_mut(),
             ) {
-                #[expect(clippy::unwrap_used)]
                 text_renderer
                     .render(atlas, viewport, &mut render_pass)
                     .unwrap();
@@ -2164,7 +2161,6 @@ impl State {
 
         self.solitary_edges = vec![];
         for [start, center, end] in &self.edges {
-            #[expect(clippy::unwrap_used)]
             let num_neighbors = neighbor_map
                 .get(&(usize::min(*start, *end), usize::max(*start, *end)))
                 .unwrap()
@@ -2532,7 +2528,6 @@ impl State {
                 }
             };
 
-            #[expect(clippy::expect_used)]
             if is_hovered {
                 found_index = i32::try_from(i).expect("cast should succeed");
                 break;

@@ -8,10 +8,10 @@ mod quadtree;
 mod renderer;
 mod simulator;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 pub use app::init_render;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
 pub use app::run;
 
 /// Exports all the core types of the library.

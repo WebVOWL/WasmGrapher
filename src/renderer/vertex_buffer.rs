@@ -119,7 +119,7 @@ pub fn build_node_instances(
             NodeShape::Circle { r } => (0, [r, 0.0]),
             NodeShape::Rectangle { w, h } => (1, [w, h]),
         };
-        #[expect(clippy::cast_possible_wrap)]
+
         let hovered = u32::from(i as i32 == hovered_index);
 
         // Map instance order to depth in [0..1], where smaller is closer.
@@ -374,7 +374,6 @@ pub fn build_line_and_arrow_vertices(
             };
         }
 
-        #[expect(clippy::cast_possible_wrap)]
         let hovered = u32::from(center_idx as i32 == hovered_index);
 
         // Compute control point for quadratic Bézier

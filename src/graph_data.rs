@@ -187,7 +187,6 @@ mod test_utils {
                     continue;
                 }
 
-                #[expect(clippy::expect_used)]
                 let [from, _, to] = value
                     .edges
                     .iter()

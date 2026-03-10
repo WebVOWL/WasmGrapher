@@ -74,7 +74,6 @@ pub fn sys_drag_start(mut data: DragStartSystemData) {
         });
 
         // Set dragged state on specific node
-        #[expect(clippy::unwrap_used)]
         if let Some(state) = data
             .node_states
             .get_mut(data.entities.entity(data.dragged_id.0.try_into().unwrap()))
