@@ -2,6 +2,7 @@
 #![allow(unused)]
 
 mod app;
+mod errors;
 mod event_dispatcher;
 mod graph_data;
 mod quadtree;
