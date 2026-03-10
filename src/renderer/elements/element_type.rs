@@ -42,7 +42,7 @@ impl ElementType {
             Self::Rdf(rdf) => Some(rdf.sovs_kind()),
             Self::Rdfs(rdfs) => Some(rdfs.sovs_kind()),
             Self::Generic(generic) => generic.sovs_kind(),
-            Self::NoDraw => None,
+            Self::NoDraw => Some("setRelation"),
         }
     }
 }
