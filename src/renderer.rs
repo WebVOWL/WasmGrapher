@@ -81,7 +81,7 @@ pub struct State {
 
     // Node and edge coordinates in pixels
     positions: Vec<[f32; 2]>,
-    labels: Vec<String>,
+    labels: Vec<Option<String>>,
     edges: Vec<[usize; 3]>,
     solitary_edges: Vec<[usize; 3]>,
     elements: Vec<ElementType>,
@@ -317,7 +317,7 @@ impl State {
         }
         if positions.is_empty() {
             positions.push([0.0, 0.0]);
-            labels.push(String::new());
+            labels.push(None);
             node_shapes.push(NodeShape::Circle { r: 0.0 });
             elements.push(ElementType::NoDraw);
         }
@@ -345,25 +345,24 @@ impl State {
             match elements.get(i) {
                 Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) => {
                     node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
-                    labels[i].clear();
+                    labels[i] = None;
                     continue;
                 }
                 Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))) => {
                     node_shapes[i] = NodeShape::Rectangle { w: 1.0, h: 1.0 };
-                    labels[i].clear();
+                    labels[i] = None;
                     continue;
                 }
                 _ => {}
             }
 
-            if labels[i].is_empty() {
+            let Some(label_text) = &labels[i] else {
                 continue;
-            }
-
-            let label_text: &str = labels[i].as_str();
+            };
+            let label_text: &str = label_text;
 
             // Use longest string among label and characteristics
-            let mut measure_text: &str = label_text;
+            let mut measure_text = label_text;
             if let Some(ch_text_ref) = characteristics.get(&i)
                 && let Some(ch_longest_line) = ch_text_ref.split('\n').max_by_key(|s| s.len())
                 && ch_longest_line.len() > measure_text.len()
@@ -452,7 +451,7 @@ impl State {
 
                 let mut low = 0usize;
                 let mut high = cuts.len().saturating_sub(1);
-                let mut best = String::new();
+                let mut best = None;
 
                 // Small padding
                 let safety_pad = 10.0 * scale;
@@ -481,7 +480,7 @@ impl State {
                     let fits = lines <= max_lines && max_w <= (capped_width - safety_pad);
 
                     if fits {
-                        best = candidate;
+                        best = Some(candidate);
                         low = mid + 1;
                     } else {
                         if mid == 0 {
@@ -491,11 +490,7 @@ impl State {
                     }
                 }
 
-                labels[i] = if best.is_empty() {
-                    "…".to_string()
-                } else {
-                    best
-                };
+                labels[i] = best.or_else(|| Some("…".to_string()));
             }
         }
 
@@ -717,7 +712,7 @@ impl State {
 
         // Filter duplicates
         for ((node_a, node_b), centers) in neighbor_map {
-            let mut center_set: HashSet<(ElementType, String, usize)> = HashSet::new();
+            let mut center_set = HashSet::new();
             let mut visible_centers = Vec::new();
             let initial_count = centers.len();
 
@@ -1010,7 +1005,12 @@ impl State {
         );
         let scale = self.window.scale_factor() as f32;
         let mut text_buffers: Vec<GlyphBuffer> = Vec::new();
-        for (i, label) in self.labels.iter().enumerate() {
+        for (i, label) in self
+            .labels
+            .iter()
+            .enumerate()
+            .filter_map(|(i, l)| l.as_ref().map(|inner| (i, inner)))
+        {
             let font_px = 12.0 * scale; // font size in physical pixels
             let line_px = 12.0 * scale;
             let mut buf = GlyphBuffer::new(&mut font_system, Metrics::new(font_px, line_px));
@@ -1968,7 +1968,7 @@ impl State {
         // Handle empty graph
         if node_shapes.is_empty() {
             self.positions = vec![[0.0, 0.0]];
-            self.labels = vec![String::new()];
+            self.labels = vec![None];
             node_shapes.push(NodeShape::Circle { r: 0.0 });
             self.elements.push(ElementType::NoDraw);
         } else {
@@ -1995,22 +1995,21 @@ impl State {
                 match self.elements.get(i) {
                     Some(ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))) => {
                         node_shapes[i] = NodeShape::Rectangle { w: 0.75, h: 0.75 };
-                        self.labels[i].clear();
+                        self.labels[i] = None;
                         continue;
                     }
                     Some(ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))) => {
                         node_shapes[i] = NodeShape::Rectangle { w: 1.0, h: 1.0 };
-                        self.labels[i].clear();
+                        self.labels[i] = None;
                         continue;
                     }
                     _ => {}
                 }
 
-                if self.labels[i].is_empty() {
+                let Some(label_text) = &self.labels[i] else {
                     continue;
-                }
-
-                let label_text: &str = self.labels[i].as_str();
+                };
+                let label_text: &str = label_text;
 
                 // Use longest string among label and characteristics
                 let mut measure_text: &str = label_text;
@@ -2093,7 +2092,7 @@ impl State {
 
                     let mut low = 0usize;
                     let mut high = cuts.len().saturating_sub(1);
-                    let mut best = String::new();
+                    let mut best = None;
 
                     // Small padding
                     let safety_pad = 10.0 * scale;
@@ -2122,7 +2121,7 @@ impl State {
                         let fits = lines <= max_lines && max_w <= (capped_width - safety_pad);
 
                         if fits {
-                            best = candidate;
+                            best = Some(candidate);
                             low = mid + 1;
                         } else {
                             if mid == 0 {
@@ -2132,11 +2131,7 @@ impl State {
                         }
                     }
 
-                    self.labels[i] = if best.is_empty() {
-                        "…".to_string()
-                    } else {
-                        best
-                    };
+                    self.labels[i] = best.or_else(|| Some("…".to_string()));
                 }
             }
         }
@@ -2181,7 +2176,7 @@ impl State {
 
         // Filter duplicates in reloaded graph
         for ((node_a, node_b), centers) in neighbor_map {
-            let mut center_set: HashSet<(ElementType, String, usize)> = HashSet::new();
+            let mut center_set = HashSet::new();
             let mut visible_centers = Vec::new();
             let initial_count = centers.len();
 
@@ -2543,12 +2538,18 @@ impl State {
     }
 
     fn freeze_node(&self, index: usize) {
-        log::info!("Freeze Node: {}", self.labels[index]);
+        log::info!(
+            "Freeze Node: {}",
+            self.labels[index].as_ref().map_or("(None)", |v| v)
+        );
         // TODO: Implement freeze logic
     }
 
     fn subgraph_node(&self, index: usize) {
-        log::info!("Create Subgraph from Node: {}", self.labels[index]);
+        log::info!(
+            "Create Subgraph from Node: {}",
+            self.labels[index].as_ref().map_or("(None)", |v| v)
+        );
         // TODO: Implement subgraph logic
     }
 }
