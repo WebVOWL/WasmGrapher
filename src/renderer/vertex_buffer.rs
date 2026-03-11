@@ -403,7 +403,7 @@ pub fn build_line_and_arrow_vertices(
             let perp = [-tangent[1], tangent[0]];
 
             // push left and right vertices for the strip
-            let thickness = (LINE_THICKNESS / 2.0 + 3.0) * zoom;
+            let thickness = f32::max((LINE_THICKNESS / 2.0 + 3.0) * zoom, 10.0);
 
             let left = [
                 perp[0].mul_add(thickness, point[0]),
