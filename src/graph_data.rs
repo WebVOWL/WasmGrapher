@@ -10,7 +10,7 @@ pub struct GraphDisplayData {
     ///
     /// The index into this vector is the ID of the node/edge having a label.
     /// The ID is defined by the indices of `elements`.
-    pub labels: Vec<String>,
+    pub labels: Vec<Option<String>>,
     /// Elements are the nodes and edge types for which visualization is supported.
     ///
     /// The index into this vector determines the unique ID of each element.
@@ -45,32 +45,32 @@ impl GraphDisplayData {
     #[must_use]
     pub fn demo() -> Self {
         let labels = vec![
-            String::from("My class"),
-            String::from("Rdfs class"),
-            String::from("Rdfs resource"),
-            String::from("Loooooooong class 1 2 3 4 5 6 7 8 9"),
-            String::from("Thing"),
-            String::from("Eq1\nEq2\nEq3"),
-            String::from("Deprecated"),
-            String::new(),
-            String::from("Literal"),
-            String::new(),
-            String::from("DisjointUnion 1 2 3 4 5 6 7 8 9"),
-            String::new(),
-            String::new(),
-            String::from("This Datatype is very long"),
-            String::from("AllValues"),
-            String::from("Property1"),
-            String::from("Property2"),
-            String::new(),
-            String::new(),
-            String::from("is a"),
-            String::from("Deprecated"),
-            String::from("External"),
-            String::from("Symmetric"),
-            String::from("Property\nInverseProperty"),
-            String::new(),
-            String::new(),
+            Some(String::from("My class")),
+            Some(String::from("Rdfs class")),
+            Some(String::from("Rdfs resource")),
+            Some(String::from("Loooooooong class 1 2 3 4 5 6 7 8 9")),
+            Some(String::from("Thing")),
+            Some(String::from("Eq1\nEq2\nEq3")),
+            Some(String::from("Deprecated")),
+            None,
+            Some(String::from("Literal")),
+            None,
+            Some(String::from("DisjointUnion 1 2 3 4 5 6 7 8 9")),
+            None,
+            None,
+            Some(String::from("This Datatype is very long")),
+            Some(String::from("AllValues")),
+            Some(String::from("Property1")),
+            Some(String::from("Property2")),
+            None,
+            None,
+            Some(String::from("is a")),
+            Some(String::from("Deprecated")),
+            Some(String::from("External")),
+            Some(String::from("Symmetric")),
+            Some(String::from("Property\nInverseProperty")),
+            None,
+            None,
         ];
         let elements = vec![
             ElementType::Owl(OwlType::Node(OwlNode::Class)),
@@ -144,7 +144,7 @@ impl std::fmt::Display for GraphDisplayData {
             self.labels
                 .iter()
                 .enumerate()
-                .map(|(i, label)| format!("[{i}] {label}"))
+                .map(|(i, label)| format!("[{i}] {}", label.as_ref().map_or("(None)", |v| v)))
                 .collect::<Vec<_>>()
         )?;
         writeln!(
@@ -206,9 +206,9 @@ mod test_utils {
         }
     }
 
-    fn node_properties(label: String, element_type: ElementType) -> Properties {
+    fn node_properties(label: Option<String>, element_type: ElementType) -> Properties {
         let mut properties = Properties::new();
-        if !label.is_empty() {
+        if let Some(label) = label {
             properties.insert("text".to_string(), label);
         }
         if let Some(kind) = element_type.sovs_kind() {
@@ -218,9 +218,9 @@ mod test_utils {
         properties
     }
 
-    fn edge_properties(label: String, element_type: ElementType) -> Properties {
+    fn edge_properties(label: Option<String>, element_type: ElementType) -> Properties {
         let mut properties = Properties::new();
-        if !label.is_empty() {
+        if let Some(label) = label {
             properties.insert("text".to_string(), label);
         }
         if let Some(kind) = element_type.sovs_kind() {
