@@ -1010,7 +1010,7 @@ impl State {
         );
         let scale = self.window.scale_factor() as f32;
         let mut text_buffers: Vec<GlyphBuffer> = Vec::new();
-        for (i, label) in self.labels.clone().iter().enumerate() {
+        for (i, label) in self.labels.iter().enumerate() {
             let font_px = 12.0 * scale; // font size in physical pixels
             let line_px = 12.0 * scale;
             let mut buf = GlyphBuffer::new(&mut font_system, Metrics::new(font_px, line_px));
