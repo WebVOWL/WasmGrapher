@@ -303,52 +303,57 @@ impl QuadTree {
 
     /// Removes the point `delete_pos` from the quadtree, if it exists.
     pub fn delete_point(&mut self, delete_pos: Vec2) -> Result<(), String> {
-        if let Some(delete_node) = self.query_point(delete_pos) {
-            let mut bb = self.boundary.clone();
-            let mut current_index = self.root;
-            let mut parent_index = UNINITIALIZED;
-            let del_mas = delete_node.mass();
+        let Some(delete_node) = self.query_point(delete_pos) else {
+            return Err(format!(
+                "Failed to delete point '{delete_pos}': point not found"
+            ));
+        };
 
-            // Traversing the tree until we find `delete_pos`.
-            while let Node::Root {
-                indices,
-                mass,
-                pos,
-                parent,
-            } = &mut self.children[current_index as usize]
-            {
-                let section = bb.section(delete_pos);
+        let mut bb = self.boundary.clone();
+        let mut current_index = self.root;
+        let mut parent_index = UNINITIALIZED;
+        let del_mas = delete_node.mass();
 
-                if *pos == delete_pos {
-                    parent_index = *parent;
-                    break;
-                }
+        // Traversing the tree until we find `delete_pos`.
+        while let Node::Root {
+            indices,
+            mass,
+            pos,
+            parent,
+        } = &mut self.children[current_index as usize]
+        {
+            let section = bb.section(delete_pos);
 
-                // Update Mass and Pos of root to account for the removed node (when we find it).
-                *mass -= del_mas;
-                *pos -= delete_pos * del_mas;
-
-                current_index = indices[section as usize];
-                bb = bb.sub_quadrant(section);
-            }
-
-            // Check the final leaf node
-            if let Node::Leaf { mass, pos, parent } = &self.children[current_index as usize]
-                && *pos == delete_pos
-            {
+            if *pos == delete_pos {
                 parent_index = *parent;
+                break;
             }
 
-            if parent_index != UNINITIALIZED {
-                // Remove the node
-                self.delete_index(current_index);
+            // Update Mass and Pos of root to account for the removed node (when we find it).
+            *mass -= del_mas;
+            *pos -= delete_pos * del_mas;
 
-                // Set the deleted node to uninitialized in the parent node.
-                let section = bb.section(delete_pos);
-                self.unassign_index(section, parent_index);
-                return Ok(());
-            }
+            current_index = indices[section as usize];
+            bb = bb.sub_quadrant(section);
         }
+
+        // Check the final leaf node
+        if let Node::Leaf { mass, pos, parent } = &self.children[current_index as usize]
+            && *pos == delete_pos
+        {
+            parent_index = *parent;
+        }
+
+        if parent_index != UNINITIALIZED {
+            // Remove the node
+            self.delete_index(current_index);
+
+            // Set the deleted node to uninitialized in the parent node.
+            let section = bb.section(delete_pos);
+            self.unassign_index(section, parent_index);
+            return Ok(());
+        }
+
         Err(format!(
             "Failed to delete point '{delete_pos}': point not found"
         ))
