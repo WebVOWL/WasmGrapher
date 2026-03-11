@@ -277,7 +277,7 @@ impl QuadTree {
     /// Unassigns the index of a node, making it the uninitialized value.
     ///
     /// If an update leaves all children of a root node uninitialized, the root is converted to a leaf.
-    /// This proceeds recursively up towards to the root of the quadtree.
+    /// This proceeds recursively up towards the root of the quadtree.
     ///
     /// Note that position and mass are unaffected by this method.
     fn unassign_index(&mut self, section: u8, root_index: u32) {
