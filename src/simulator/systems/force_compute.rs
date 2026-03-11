@@ -18,7 +18,6 @@ use specs::{Entities, ParJoin, Read, ReadExpect, ReadStorage, System, WriteStora
 
 pub struct ComputeNodeForce;
 
-impl ComputeNodeForce {}
 
 impl<'a> System<'a> for ComputeNodeForce {
     type SystemData = (
