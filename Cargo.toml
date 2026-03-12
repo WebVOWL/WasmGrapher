@@ -33,6 +33,7 @@
     glam="0.29.0"
     glyphon={git="https://github.com/grovesNL/glyphon", rev="de4b5b8"}
     log="0.4.0"
+    rand="0.10"
     rayon="1.10.0"
     rkyv="0.8.12"
     smallvec={version="1.15.1", features=["union"]}
@@ -53,11 +54,13 @@
         version="0.20.1"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
+    getrandom={version="0.3"}
     pollster="0.4.0"
-    rand="0.8.5"
+
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
     console_error_panic_hook="0.1.6"
+    getrandom={version="0.3", features=["wasm_js"]}
     wasm-bindgen="0.2.100"
     wasm-bindgen-futures="0.4.50"
 
