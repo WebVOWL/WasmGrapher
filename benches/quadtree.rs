@@ -82,9 +82,9 @@ fn bounding_box_sub_quadrant(c: &mut Criterion) {
 }
 
 criterion_group!(
-    simulation,
+    quadtree,
     quadtree_insert,
     quadtree_get_stack,
     bounding_box_sub_quadrant
 );
-criterion_main!(simulation);
+criterion_main!(quadtree);
