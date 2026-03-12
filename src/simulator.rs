@@ -30,6 +30,7 @@ use crate::{
     },
 };
 use glam::Vec2;
+use log::info;
 use rayon::prelude::*;
 use specs::{
     Builder, Dispatcher, DispatcherBuilder, Entities, Join, LazyUpdate, ParJoin, Read, ReadStorage,
@@ -64,6 +65,15 @@ impl<'a> System<'a> for QuadTreeConstructor {
 
         for (position, mass) in (&positions, &masses).join() {
             quadtree.insert(position.0, mass.0);
+        }
+        for node in &quadtree.children {
+            info!(
+                "pos={}, mass={}, is_root={}, is_leaf={}",
+                node.position(),
+                node.mass(),
+                node.is_root(),
+                node.is_leaf()
+            );
         }
     }
 }

@@ -1,8 +1,12 @@
 use glam::Vec2;
-use log::debug;
+use log::info;
+use rand::prelude::*;
 use smallvec::{SmallVec, smallvec};
-use std::mem::{swap, take};
-
+use std::{
+    fmt::format,
+    mem::{swap, take},
+    ops::Range,
+};
 const EPSILON: f32 = 1e-3;
 const UNINITIALIZED: u32 = u32::MAX;
 
@@ -122,7 +126,7 @@ impl Node {
 #[derive(Debug, Default)]
 /// A quadtree capable of storing [`u32::MAX`] elements.
 pub struct QuadTree {
-    children: Vec<Node>,
+    pub children: Vec<Node>,
     pub boundary: BoundingBox2D,
     root: u32,
 }
@@ -324,7 +328,7 @@ impl QuadTree {
         {
             let section = bb.section(delete_pos);
 
-            if *pos == delete_pos {
+            if pos.distance_squared(delete_pos) <= EPSILON {
                 parent_index = *parent;
                 break;
             }
@@ -439,7 +443,7 @@ impl QuadTree {
                         if s / dist < theta {
                             net_force += Self::repel_force(
                                 position,
-                                parent.position(),
+                                center_mass,
                                 mass,
                                 parent.mass(),
                                 repel_force,
@@ -472,6 +476,7 @@ impl QuadTree {
             stack.clear();
             swap(&mut stack, &mut new_stack);
         }
+        info!("Net force: {net_force}");
         net_force.clamp(
             Vec2::new(-100_000.0, -100_000.0),
             Vec2::new(100_000.0, 100_000.0),
@@ -480,14 +485,29 @@ impl QuadTree {
 
     /// Computes the electrostatic force between two bodies. Based on Coulomb's law.
     fn repel_force(pos1: Vec2, pos2: Vec2, mass1: f32, mass2: f32, repel_force: f32) -> Vec2 {
-        let dir_vec = pos2 - pos1;
-        let mut length_sqr = dir_vec.length_squared();
+        let mut component_form = pos2 - pos1;
+        let mut length_sqr = component_form.length_squared();
+
+        // Limit forces for very close points; randomize direction if coincident.
         if length_sqr == 0.0 {
-            return Vec2::ZERO;
+            let mut rng = rand::rng();
+
+            let init =
+                format!("component_form_init={component_form}, length_sqr_init={length_sqr}");
+            component_form.x += rng.random_range::<f32, Range<f32>>(-1.0_f32..1.0_f32);
+            component_form.y += rng.random_range::<f32, Range<f32>>(-1.0_f32..1.0_f32);
+            length_sqr = component_form.length_squared();
+            let lensq = format!("{length_sqr}");
+            if length_sqr < 1.0 {
+                length_sqr = f32::sqrt(length_sqr);
+            }
+            info!(
+                "{init}, component_form={component_form}, length_sqrt1={lensq}, length_sqr={length_sqr}, pos1={pos1}, pos2={pos2}"
+            );
         }
 
-        let f = -repel_force * (mass1 * mass2).abs() / length_sqr;
-        let dir_vec_normalized = dir_vec.normalize_or(Vec2::ZERO);
+        let f = repel_force * (mass1 * mass2).abs() / length_sqr;
+        let dir_vec_normalized = component_form.normalize_or(Vec2::ZERO);
         dir_vec_normalized * f
     }
 }
