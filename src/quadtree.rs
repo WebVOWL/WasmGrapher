@@ -339,7 +339,7 @@ impl QuadTree {
 
         // Check the final leaf node
         if let Node::Leaf { mass, pos, parent } = &self.children[current_index as usize]
-            && *pos == delete_pos
+            && pos.distance_squared(delete_pos) <= EPSILON
         {
             parent_index = *parent;
         }
@@ -367,7 +367,7 @@ impl QuadTree {
 
         // Traversing the tree until we find `query_pos`.
         while let Node::Root { indices, pos, .. } = &self.children[root_index as usize] {
-            if *pos == query_pos {
+            if pos.distance_squared(query_pos) <= EPSILON {
                 return Some(&self.children[root_index as usize]);
             }
             let section = bb.section(query_pos);
