@@ -26,7 +26,7 @@ use glyphon::{
     Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
     SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
-use log::info;
+use log::{info, warn};
 use specs::{Join, WorldExt};
 use std::{cmp::min, collections::HashMap, collections::HashSet, sync::Arc};
 use vertex_buffer::{MenuUniforms, NodeInstance, VERTICES, Vertex, ViewUniforms};
@@ -209,6 +209,19 @@ impl State {
             config.width = 1;
             config.height = 1;
         }
+        let max_size = device.limits().max_texture_dimension_2d;
+
+        if let Some((width_new, height_new)) =
+            get_limited_surface_resolution(config.width, config.height, max_size)
+        {
+            warn!(
+                "Desired resolution ({0}x{1}) is larger than allowed ({2}x{2}). Maybe WebGPU isn't supported? Scaling down to {width_new}x{height_new}",
+                config.width, config.height, max_size
+            );
+            config.width = width_new;
+            config.height = height_new;
+        }
+
         surface.configure(&device, &config);
         let surface_configured = true;
 
@@ -956,13 +969,18 @@ impl State {
 
     /// Converts screen-space pixel coordinates (Y-down) to world-space coordinates (Y-up)
     fn screen_to_world(&self, screen_pos: Vec2) -> Vec2 {
+        let window_size = self.window.inner_size();
         let screen_center = Vec2::new(
-            self.config.width as f32 / 2.0,
-            self.config.height as f32 / 2.0,
+            window_size.width as f32 / 2.0,
+            window_size.height as f32 / 2.0,
         );
+        // Ratio of surface pixels to screen pixels. This might be < 1 if the surface was
+        // downscaled because its texture would be too big for WebGL
+        let downscaling_factor =
+            (self.config.width as f32) / (self.window.inner_size().width as f32);
         let screen_offset_px = screen_pos - screen_center;
         let world_rel_zoomed = Vec2::new(screen_offset_px.x, -screen_offset_px.y);
-        let world_rel = world_rel_zoomed / self.zoom;
+        let world_rel = downscaling_factor * world_rel_zoomed / self.zoom;
         world_rel + self.pan
     }
 
@@ -972,6 +990,8 @@ impl State {
             self.config.width as f32 / 2.0,
             self.config.height as f32 / 2.0,
         );
+        let downscaling_factor =
+            (self.config.width as f32) / (self.window.inner_size().width as f32);
         let world_rel = world_pos - self.pan;
         let screen_offset_px = Vec2::new(world_rel.x, -world_rel.y) * self.zoom;
         screen_center + screen_offset_px
@@ -1277,8 +1297,18 @@ impl State {
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             let max_size = self.device.limits().max_texture_dimension_2d;
-            self.config.width = min(width, max_size);
-            self.config.height = min(height, max_size);
+            self.config.width = width;
+            self.config.height = height;
+            if let Some((width_new, height_new)) =
+                get_limited_surface_resolution(width, height, max_size)
+            {
+                warn!(
+                    "Desired resolution ({0}x{1}) is larger than allowed ({2}x{2}). Maybe WebGPU isn't supported? Scaling down to {width_new}x{height_new}",
+                    self.config.width, self.config.height, max_size
+                );
+                self.config.width = width_new;
+                self.config.height = height_new;
+            }
             self.surface.configure(&self.device, &self.config);
             self.is_surface_configured = true;
 
@@ -2551,6 +2581,33 @@ impl State {
         log::info!("Create Subgraph from Node: {}", self.labels[index]);
         // TODO: Implement subgraph logic
     }
+}
+
+/// Resize a resolution such that none of the dimensions exceed `max_size`, while retaining
+/// aspect ratio.
+/// Returns none if dimension were already within limits
+fn get_limited_surface_resolution(width: u32, height: u32, max_size: u32) -> Option<(u32, u32)> {
+    if width <= max_size && dbg!(height) <= max_size {
+        return None;
+    }
+    let (big, small) = if width > height {
+        (width, height)
+    } else {
+        (height, width)
+    };
+
+    // Adjust the dimensions while retaining aspect ratio
+    // We have `small/big = small_new/max_size`, so `small_new = max_size * small/big`
+    let small_new = max_size * small / big;
+    let big_new = max_size;
+
+    let (width_new, height_new) = if width > height {
+        (big_new, small_new)
+    } else {
+        (small_new, big_new)
+    };
+
+    Some((width_new, height_new))
 }
 
 struct MenuLayout {
