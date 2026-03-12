@@ -398,7 +398,9 @@ impl QuadTree {
         self.children.clear();
     }
 
-    /// Barnes-Hut algorithm
+    /// The Barnes-Hut algorithm.
+    ///
+    /// Returns the net force acted upon the body for the entire tree.
     ///
     /// `position` is position of the body to compute forces on.
     ///
@@ -407,10 +409,14 @@ impl QuadTree {
     /// `theta` is the threshold of the Barnes-Hut algorithm.
     ///
     /// `repel_force` is the magnitude of the repulsive force between two bodies (the Coulomb constant).
-    ///
-    /// Returns the net force acted upon the body for the entire tree.
     #[must_use]
-    pub fn barnes_hut(&self, position: Vec2, mass: f32, theta: f32, repel_force: f32) -> Vec2 {
+    pub fn approximate_forces_on_body(
+        &self,
+        position: Vec2,
+        mass: f32,
+        theta: f32,
+        repel_force: f32,
+    ) -> Vec2 {
         let mut net_force = Vec2::ZERO;
 
         if self.children.is_empty() {

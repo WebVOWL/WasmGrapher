@@ -1,3 +1,5 @@
+#![expect(clippy::expect_used, reason = "Benching is allowed to panic")]
+
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use glam::Vec2;
 use grapher::prelude::{BoundingBox2D, QuadTree};
@@ -14,7 +16,6 @@ fn quadtree_insert(c: &mut Criterion) {
 
     group.bench_function("Insert", |b| {
         b.iter(|| {
-            #[expect(clippy::unwrap_used, reason = "Benching is allowed to panic")]
             qt.insert(
                 black_box(Vec2::new(
                     rng.gen_range((-w / 2.0)..(w / 2.0)),
@@ -22,7 +23,7 @@ fn quadtree_insert(c: &mut Criterion) {
                 )),
                 rng.gen_range(1.0..2000.0),
             )
-            .unwrap();
+            .expect("Insert should succeed");
         });
     });
     group.finish();
@@ -46,14 +47,15 @@ fn quadtree_get_stack(c: &mut Criterion) {
                 rng.gen_range((-w / 2.0)..(w / 2.0)),
                 rng.gen_range((-w / 2.0)..(w / 2.0)),
             );
-            #[expect(clippy::unwrap_used, reason = "Benching is allowed to panic")]
-            qt.insert(black_box(v), rng.gen_range(1.0..2000.0)).unwrap();
+
+            qt.insert(black_box(v), rng.gen_range(1.0..2000.0))
+                .expect("Insert should succeed");
         }
 
         group.throughput(criterion::Throughput::Elements(u64::from(i)));
         group.bench_function(BenchmarkId::new("Barnes-Hut", i), |b| {
             b.iter(|| {
-                qt.barnes_hut(
+                qt.approximate_forces_on_body(
                     black_box(Vec2::new(
                         rng.gen_range((-w / 2.0)..(w / 2.0)),
                         rng.gen_range((-w / 2.0)..(w / 2.0)),

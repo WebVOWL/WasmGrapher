@@ -18,7 +18,6 @@ use specs::{Entities, ParJoin, Read, ReadExpect, ReadStorage, System, WriteStora
 
 pub struct ComputeNodeForce;
 
-
 impl<'a> System<'a> for ComputeNodeForce {
     type SystemData = (
         Entities<'a>,
@@ -48,7 +47,8 @@ impl<'a> System<'a> for ComputeNodeForce {
                     node_forces.0 = Vec2::ZERO;
                     return;
                 }
-                node_forces.0 = quadtree.barnes_hut(pos.0, mass.0, theta.0, repel_force.0);
+                node_forces.0 =
+                    quadtree.approximate_forces_on_body(pos.0, mass.0, theta.0, repel_force.0);
             });
     }
 }
