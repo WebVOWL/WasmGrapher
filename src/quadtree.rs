@@ -3,6 +3,7 @@ use log::info;
 use rand::prelude::*;
 use smallvec::{SmallVec, smallvec};
 use std::{
+    collections::HashMap,
     fmt::format,
     mem::{swap, take},
     ops::Range,
@@ -73,19 +74,19 @@ pub enum Node {
         indices: [u32; 4],
         mass: f32,
         pos: Vec2,
-        parent: u32,
+        parent_index: u32,
     },
     Leaf {
         mass: f32,
         pos: Vec2,
-        parent: u32,
+        parent_index: u32,
     },
 }
 
 impl Node {
     #[must_use]
     const fn new_leaf(pos: Vec2, mass: f32, parent: u32) -> Self {
-        Self::Leaf { mass, pos, parent }
+        Self::Leaf { mass, pos, parent_index: parent }
     }
     #[must_use]
     const fn new_root(pos: Vec2, mass: f32, indices: [u32; 4], parent: u32) -> Self {
@@ -93,7 +94,7 @@ impl Node {
             indices,
             mass,
             pos,
-            parent,
+            parent_index: parent,
         }
     }
 
@@ -121,12 +122,19 @@ impl Node {
             Self::Root { mass, .. } | Self::Leaf { mass, .. } => *mass,
         }
     }
+
+    #[must_use]
+    pub const fn parent(&self) -> u32 {
+        match self {
+            Self::Root { parent_index: parent, .. } | Self::Leaf { parent_index: parent, .. } => *parent,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
 /// A quadtree capable of storing [`u32::MAX`] elements.
 pub struct QuadTree {
-    pub children: Vec<Node>,
+    pub children: HashMap<u32, Node>,
     pub boundary: BoundingBox2D,
     root: u32,
 }
@@ -137,7 +145,7 @@ impl QuadTree {
         Self {
             root: 0,
             boundary,
-            children: Vec::new(),
+            children: HashMap::new(),
         }
     }
 
@@ -146,11 +154,20 @@ impl QuadTree {
         Self {
             root: 0,
             boundary,
-            children: Vec::with_capacity(capacity),
+            children: HashMap::with_capacity(capacity),
         }
     }
 
     pub fn insert(&mut self, new_pos: Vec2, new_mass: f32) -> Result<(), String> {
+        self.insert_id(self.children.len() as u32, new_pos, new_mass)
+    }
+
+    /// Inserts a new point into the quadtree.
+    ///
+    /// `new_id` is the ID of the point in the tree. It must uniquely identify a point.
+    ///
+    /// It is an error if `new_id` already exists in the quadtree.
+    pub fn insert_id(&mut self, new_id: u32, new_pos: Vec2, new_mass: f32) -> Result<(), String> {
         if self.children.len() == (UNINITIALIZED - 1) as usize {
             return Err(format!(
                 "Quadtree is full! (storing {}/{} elements)",
@@ -159,25 +176,21 @@ impl QuadTree {
             ));
         }
 
-        self.children
-            .push(Node::new_leaf(new_pos, new_mass, self.root));
-
         // With only one node there's no need to continue
-        if self.children.len() == 1 {
+        if self.children.is_empty() {
+            let new_leaf = Node::new_leaf(new_pos, new_mass, self.root);
+            self.children.insert(new_id, new_leaf);
             return Ok(());
         }
 
         let mut bb = self.boundary.clone();
         let mut root_index = self.root;
-        let new_index = self.children.len() as u32 - 1;
+        let new_index = self.children.len() as u32;
 
         // Traversing the tree until we find an empty quadrant for the new leaf.
         while let Node::Root {
-            indices,
-            mass,
-            pos,
-            parent,
-        } = &mut self.children[root_index as usize]
+            indices, mass, pos, ..
+        } = &mut self.children[&root_index]
         {
             // Update Mass and Pos of root to account for the new leaf.
             *mass += new_mass;
@@ -194,19 +207,92 @@ impl QuadTree {
             bb = bb.sub_quadrant(section);
         }
 
-        // if new leaf is too close to current leaf we merge
-        // TODO: in this case we will have a "dead" leaf
-        if let Node::Leaf { mass, pos, parent } = self.children[root_index as usize]
+        // If new leaf is too close to current leaf we merge
+        if let Node::Leaf { mass, pos, parent_index: parent } = self.children[&root_index]
             && pos.distance(new_pos) < EPSILON
         {
             let m: f32 = mass + new_mass;
-            self.children[root_index as usize] = Node::new_leaf(pos, m, parent);
+            self.children[&root_index] = Node::new_leaf(pos, m, parent);
             return Ok(());
         }
 
-        // create new root until leaf and new leaf are in different sections
-        while let Node::Leaf { mass, pos, parent } = self.children[root_index as usize] {
+        if self.children.contains_key(&new_id) {
+            return Err(format!("ID {new_id} already present"));
+        }
+        self.children
+            .insert(new_id, Node::new_leaf(new_pos, new_mass, root_index));
+
+        // Create new root until leaf and new leaf are in different sections
+        while let Node::Leaf { mass, pos, parent_index } = self.children[&root_index] {
             let mut fin = false;
+
+
+
+
+            let section = bb.section(pos);
+            let mut ind = [UNINITIALIZED, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED];
+            ind[section as usize] = root_index;
+
+
+            let section = bb.section(new_pos);
+            // If section of the new root is empty we can set it and exit
+            if ind[section as usize] == UNINITIALIZED {
+                ind[section as usize] = new_index;
+                fin = true;
+            }
+
+
+            let new_root = Node::new_root(
+                pos * mass + new_pos * new_mass,
+                mass + new_mass,
+                ind,
+                parent_index,
+            );
+
+            let new_root_index = self.children.len() as u32;
+            self.children.insert(new_root_index, new_root);
+
+            // Set the parent of the old leaf to the new root
+            self.update_index(section, parent_index, new_root_index);
+
+            self.update_index(section, root_index, new_index);
+
+
+            let old_node = Node::new_leaf(pos, mass, root_index);
+            self.children.insert(self.children.len() as u32, old_node);
+
+            let old_index = self.children.len() - 1;
+            let section = bb.section(pos);
+            let mut ind = [UNINITIALIZED, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED];
+            ind[section as usize] = old_index as u32;
+
+            let section = bb.section(new_pos);
+
+            // If section of the new root is empty we can set it and exit
+            if ind[section as usize] == UNINITIALIZED {
+                ind[section as usize] = new_index;
+                fin = true;
+            }
+
+            // sets the old leaf index to the new root
+            let new_root = Node::new_root(
+                pos * mass + new_pos * new_mass,
+                mass + new_mass,
+                ind,
+                parent,
+            );
+            self.children.insert(k, v)
+            // self.children[root_index as usize] = new_root;
+
+            if fin {
+                break;
+            }
+
+            root_index = old_index as u32;
+
+            bb = bb.sub_quadrant(section);
+
+            // ------------------
 
             // Pushes the old leaf to the back of the vector and inserts its index into the index array of the new root
             let old_node = Node::new_leaf(pos, mass, root_index);
@@ -243,6 +329,22 @@ impl QuadTree {
         }
 
         Ok(())
+    }
+
+    /// Update the index of a node.
+    ///
+    /// If `root_index` is a root_node, set the index of the child in `section` of the root node to `new_index`.
+    /// If `root_index` is a leaf node, set the parent index of the leaf node to `new_index`
+    fn update_index(&self, section: u8, root_index: u32, new_index: u32)  {
+        match &mut self.children[&root_index] {
+            Node::Root { indices, mass, pos, parent_index } => {
+                indices[section as usize] = new_child_index;
+
+            },
+            Node::Leaf { mass, pos, parent_index } =>{
+                parent_index = &mut new_index;
+            },
+        }
     }
 
     /// Removes a node and all its descendants from the quadtree.
@@ -282,6 +384,10 @@ impl QuadTree {
     ///
     /// If an update leaves all children of a root node uninitialized, the root is converted to a leaf.
     /// This proceeds recursively up towards the root of the quadtree.
+    // / If an update leaves all children of a root node uninitialized, the root node is deleted.
+    // / This proceeds recursively up towards the root of the quadtree, but stops at the tree root.
+    // / The reason for this is that root nodes are not user-defined points, but rather points
+    // / generated by the quadtree.
     ///
     /// Note that position and mass are unaffected by this method.
     fn unassign_index(&mut self, section: u8, root_index: u32) {
@@ -289,7 +395,7 @@ impl QuadTree {
             indices,
             pos,
             mass,
-            parent,
+            parent_index: parent,
         } = &mut self.children[root_index as usize]
         {
             indices[section as usize] = UNINITIALIZED;
@@ -297,10 +403,19 @@ impl QuadTree {
             if indices.iter().all(|i| *i == UNINITIALIZED) {
                 // All children are uninitialized. We can convert the node into a leaf.
                 self.children[root_index as usize] = Node::new_leaf(*pos, *mass, *parent);
+
+                //     let p = *parent;
+                //     {
+                //         // Unassign the deleted node from its parent.
+                //         self.unassign_index(section, p);
+                //     }
+                //     // All children are uninitialized. We can delete the node.
+                //     self.delete_index(root_index);
+                // }
             }
         }
 
-        if let Node::Leaf { parent, .. } = &self.children[root_index as usize] {
+        if let Node::Leaf { parent_index: parent, .. } = &self.children[root_index as usize] {
             self.unassign_index(section, *parent);
         }
     }
@@ -323,7 +438,7 @@ impl QuadTree {
             indices,
             mass,
             pos,
-            parent,
+            parent_index: parent,
         } = &mut self.children[current_index as usize]
         {
             let section = bb.section(delete_pos);
@@ -342,7 +457,7 @@ impl QuadTree {
         }
 
         // Check the final leaf node
-        if let Node::Leaf { mass, pos, parent } = &self.children[current_index as usize]
+        if let Node::Leaf { mass, pos, parent_index: parent } = &self.children[current_index as usize]
             && pos.distance_squared(delete_pos) <= EPSILON
         {
             parent_index = *parent;
@@ -438,6 +553,7 @@ impl QuadTree {
 
                 match parent {
                     Node::Root { indices, .. } => {
+                        info!("Parent[{node_index}]");
                         let center_mass = parent.position();
                         let dist = center_mass.distance(position);
                         if s / dist < theta {
@@ -457,6 +573,7 @@ impl QuadTree {
                         }
                     }
                     Node::Leaf { .. } => {
+                        info!("Leaf[{node_index}]");
                         net_force += Self::repel_force(
                             position,
                             parent.position(),
@@ -552,7 +669,7 @@ mod test {
         let mut qt: QuadTree = QuadTree::new(BoundingBox2D::new(Vec2::ZERO, 10.0, 10.0));
         // Insert first node
         let n1_mass = 5.0;
-        qt.insert(Vec2::new(-1.0, -1.0), n1_mass);
+        qt.insert_id(Vec2::new(-1.0, -1.0), n1_mass);
         if let Node::Leaf { mass, .. } = qt.children[0] {
             assert_eq!(mass, n1_mass);
         } else {
@@ -562,7 +679,7 @@ mod test {
         // Insert second node in in the same quadrant but different sub quadrant
         //  N1-R-N2
         let n2_mass = 30.0;
-        qt.insert(Vec2::new(1.0, 1.0), n2_mass);
+        qt.insert_id(Vec2::new(1.0, 1.0), n2_mass);
         // check root node
         assert!(qt.children[0].is_root());
         if let Node::Root { indices, mass, .. } = qt.children[0] {
@@ -584,33 +701,52 @@ mod test {
         // Insert first node
         let n1_mass = 5.0;
         let n1_pos = Vec2::new(-1.0, -1.0);
-        qt.insert(n1_pos, n1_mass);
+        qt.insert_id(n1_pos, n1_mass);
 
         // Insert second node
         let n2_mass = 1.0;
         let n2_pos = Vec2::new(-2.0, 1.0);
-        qt.insert(n2_pos, n2_mass);
+        qt.insert_id(n2_pos, n2_mass);
 
         assert!(qt.contains(n1_pos));
         assert!(qt.contains(n2_pos));
     }
 
-    #[ignore = "Test failing due to double insertion bug in QuadTree::insert()"]
+    // #[ignore = "Test failing due to double insertion bug in QuadTree::insert()"]
     #[test]
     fn test_quadtree_delete() {
         let mut qt: QuadTree = QuadTree::new(BoundingBox2D::new(Vec2::ZERO, 10.0, 10.0));
         // Insert first node
         let n1_mass = 5.0;
         let n1_pos = Vec2::new(-1.0, -1.0);
-        qt.insert(n1_pos, n1_mass);
+        qt.insert_id(n1_pos, n1_mass);
 
         // Insert second node in in the same quadrant but different sub quadrant
         let n2_mass = 30.0;
         let n2_pos = Vec2::new(1.0, 1.0);
-        qt.insert(n2_pos, n2_mass);
+        qt.insert_id(n2_pos, n2_mass);
+
+        for node in &qt.children {
+            println!(
+                "BEFORE: pos={}, mass={}, is_root={}, is_leaf={}",
+                node.position(),
+                node.mass(),
+                node.is_root(),
+                node.is_leaf()
+            );
+        }
 
         // FIXME: Test failing due to double insertion bug in QuadTree::insert()
         assert!(qt.delete_point(n2_pos).is_ok());
+        for node in &qt.children {
+            println!(
+                "AFTER: pos={}, mass={}, is_root={}, is_leaf={}",
+                node.position(),
+                node.mass(),
+                node.is_root(),
+                node.is_leaf()
+            );
+        }
         assert!(qt.children.len() == 1);
         assert!(qt.delete_point(n1_pos).is_ok());
         assert!(qt.children.is_empty());

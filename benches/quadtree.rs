@@ -15,7 +15,7 @@ fn quadtree_insert(c: &mut Criterion) {
     let mut group = c.benchmark_group("QuadTree");
     group.bench_function("Insert", |b| {
         b.iter(|| {
-            qt.insert(
+            qt.insert_id(
                 black_box(Vec2::new(
                     rng.random_range((-w / 2.0)..(w / 2.0)),
                     rng.random_range((-w / 2.0)..(w / 2.0)),
@@ -47,7 +47,7 @@ fn quadtree_barnes_hut(c: &mut Criterion) {
                 rng.random_range((-w / 2.0)..(w / 2.0)),
             );
 
-            qt.insert(black_box(v), rng.random_range(1.0..2000.0))
+            qt.insert_id(black_box(v), rng.random_range(1.0..2000.0))
                 .expect("Insert should succeed");
         }
 

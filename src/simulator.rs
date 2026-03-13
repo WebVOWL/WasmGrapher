@@ -64,17 +64,16 @@ impl<'a> System<'a> for QuadTreeConstructor {
         quadtree.boundary = BoundingBox2D::new((dir / 2.0) + min, dir[0], dir[1]);
 
         for (position, mass) in (&positions, &masses).join() {
-            quadtree.insert(position.0, mass.0);
+            quadtree.insert_id(position.0, mass.0);
         }
-        for node in &quadtree.children {
-            info!(
-                "pos={}, mass={}, is_root={}, is_leaf={}",
-                node.position(),
-                node.mass(),
-                node.is_root(),
-                node.is_leaf()
-            );
+        for (i, node) in quadtree.children.iter().enumerate() {
+            if node.is_root() {
+                info!("ROOT[{i}]: pos={}, mass={}", node.position(), node.mass(),);
+            } else {
+                info!("LEAF[{i}]: pos={}, mass={}", node.position(), node.mass(),);
+            }
         }
+        info!("TOTAL: {}", quadtree.children.len());
     }
 }
 
