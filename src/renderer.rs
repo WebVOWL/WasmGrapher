@@ -1005,12 +1005,7 @@ impl State {
         );
         let scale = self.window.scale_factor() as f32;
         let mut text_buffers: Vec<GlyphBuffer> = Vec::new();
-        for (i, label) in self
-            .labels
-            .iter()
-            .enumerate()
-            .filter_map(|(i, l)| l.as_ref().map(|inner| (i, inner)))
-        {
+        for (i, label) in self.labels.iter().enumerate() {
             let font_px = 12.0 * scale; // font size in physical pixels
             let line_px = 12.0 * scale;
             let mut buf = GlyphBuffer::new(&mut font_system, Metrics::new(font_px, line_px));
@@ -1064,6 +1059,12 @@ impl State {
             let attrs = &Attrs::new().family(Family::SansSerif).metadata(i);
             let element_metrics = Metrics::new(font_px - 3.0, line_px);
             let mut owned_spans: Vec<(String, Attrs)> = Vec::new();
+
+            let label_or_node_name = label
+                .as_ref()
+                .map_or_else(|| self.elements[i].to_string(), String::clone);
+            let label_or_empty = label.clone().unwrap_or_else(String::new);
+
             match self.elements[i] {
                 ElementType::NoDraw => {
                     owned_spans.push((String::new(), attrs.clone()));
@@ -1072,7 +1073,7 @@ impl State {
                     match node {
                         OwlNode::EquivalentClass => {
                             // TODO: Update when handling equivalent classes from ontology
-                            let mut parts: Vec<&str> = label.split('\n').collect();
+                            let mut parts: Vec<&str> = label_or_node_name.split('\n').collect();
                             let label1 = parts.first().map_or("", |v| *v).to_string();
                             let eq_labels = parts.split_off(1);
                             owned_spans.push((label1, attrs.clone()));
@@ -1088,14 +1089,14 @@ impl State {
                             }
                         }
                         OwlNode::ExternalClass => {
-                            owned_spans.push((label.clone(), attrs.clone()));
+                            owned_spans.push((label_or_node_name.clone(), attrs.clone()));
                             owned_spans.push((
                                 "\n(external)".to_string(),
                                 attrs.clone().metrics(element_metrics),
                             ));
                         }
                         OwlNode::DeprecatedClass => {
-                            owned_spans.push((label.clone(), attrs.clone()));
+                            owned_spans.push((label_or_node_name.clone(), attrs.clone()));
                             owned_spans.push((
                                 "\n(deprecated)".to_string(),
                                 attrs.clone().metrics(element_metrics),
@@ -1105,23 +1106,23 @@ impl State {
                             owned_spans.push(("Thing".to_string(), attrs.clone()));
                         }
                         OwlNode::Complement => {
-                            owned_spans.push((label.clone(), attrs.clone()));
+                            owned_spans.push((label_or_node_name, attrs.clone()));
                             owned_spans.push(("\n\n¬".to_string(), attrs.clone()));
                         }
                         OwlNode::DisjointUnion => {
-                            owned_spans.push((label.clone(), attrs.clone()));
+                            owned_spans.push((label_or_node_name, attrs.clone()));
                             owned_spans.push(("\n\n1".to_string(), attrs.clone()));
                         }
                         OwlNode::IntersectionOf => {
-                            owned_spans.push((label.clone(), attrs.clone()));
+                            owned_spans.push((label_or_node_name, attrs.clone()));
                             owned_spans.push(("\n\n∩".to_string(), attrs.clone()));
                         }
                         OwlNode::UnionOf => {
-                            owned_spans.push((label.clone(), attrs.clone()));
+                            owned_spans.push((label_or_node_name, attrs.clone()));
                             owned_spans.push(("\n\n∪".to_string(), attrs.clone()));
                         }
                         _ => {
-                            owned_spans.push((label.clone(), attrs.clone()));
+                            owned_spans.push((label_or_node_name, attrs.clone()));
                         }
                     }
                 }
@@ -1129,7 +1130,7 @@ impl State {
                     OwlEdge::InverseOf => {
                         if let Some(chs) = self.characteristics.get(&i) {
                             let (ch1, ch2) = chs.split_once('\n').unwrap_or((chs, ""));
-                            let labels_vec: Vec<&str> = label.split('\n').collect();
+                            let labels_vec: Vec<&str> = label_or_node_name.split('\n').collect();
                             let label1 = labels_vec.first().map_or("", |v| *v).to_string();
                             owned_spans.push((label1, attrs.clone()));
                             owned_spans.push((
@@ -1143,7 +1144,7 @@ impl State {
                                 attrs.clone().metrics(element_metrics),
                             ));
                         } else {
-                            let labels_vec: Vec<&str> = label.split('\n').collect();
+                            let labels_vec: Vec<&str> = label_or_node_name.split('\n').collect();
                             let mut label1 = labels_vec.first().map_or("", |v| *v).to_string();
                             label1.push_str("\n\n\n");
                             let label2 = labels_vec.get(1).map_or("", |v| *v).to_string();
@@ -1152,21 +1153,21 @@ impl State {
                         }
                     }
                     OwlEdge::DisjointWith => {
-                        owned_spans.push((label.clone(), attrs.clone()));
+                        owned_spans.push((label_or_node_name, attrs.clone()));
                         owned_spans.push((
                             "\n\n(disjoint)".to_string(),
                             attrs.clone().metrics(element_metrics),
                         ));
                     }
                     _ => {
-                        owned_spans.push((label.clone(), attrs.clone()));
+                        owned_spans.push((label_or_node_name.clone(), attrs.clone()));
                     }
                 },
                 ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf)) => {
                     owned_spans.push(("Subclass of".to_string(), attrs.clone()));
                 }
                 _ => {
-                    owned_spans.push((label.clone(), attrs.clone()));
+                    owned_spans.push((label_or_node_name.clone(), attrs.clone()));
                 }
             }
 
