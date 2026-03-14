@@ -257,13 +257,10 @@ impl QuadTree {
     }
 
     /// Removes a node and all its descendants from the quadtree.
-    ///
-    /// # Panics
-    /// Panics if `index` is larger than the size of the quadtree.
-    fn delete_index(&mut self, index: u32) {
-        // Use of smallvec to avoid heap allocations
-        let mut stack: SmallVec<[u32; 4]> = smallvec![index];
-        let mut new_stack: SmallVec<[u32; 4]> = SmallVec::with_capacity(4);
+    fn delete_index(&mut self, index: u32) -> Result<(), String> {
+        let mut stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
+        stack.push(index);
+        let mut new_stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
         'outer: loop {
             for node_index in &stack {
                 // FIXME: Use a hashmap instead of O(n) vector shifting.
@@ -466,9 +463,9 @@ impl QuadTree {
 
         let mut s: f32 = self.boundary.width.max(self.boundary.height);
 
-        // Use of smallvec to avoid heap allocations
-        let mut stack: SmallVec<[u32; 4]> = smallvec![0];
-        let mut new_stack: SmallVec<[u32; 4]> = SmallVec::with_capacity(4);
+        let mut stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
+        stack.push(self.root);
+        let mut new_stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
         'outer: loop {
             for node_index in &stack {
                 let parent = &self.children[*node_index as usize];
