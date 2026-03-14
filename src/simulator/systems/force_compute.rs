@@ -13,7 +13,6 @@ use crate::{
     },
 };
 use glam::Vec2;
-use log::info;
 use rayon::prelude::*;
 use specs::{Entities, ParJoin, Read, ReadExpect, ReadStorage, System, WriteStorage};
 
@@ -48,13 +47,12 @@ impl<'a> System<'a> for ComputeNodeForce {
                     node_forces.0 = Vec2::ZERO;
                     return;
                 }
-                node_forces.0 =
-                    quadtree.approximate_forces_on_body(pos.0, mass.0, theta.0, repel_force.0);
-                info!(
-                    "Node[{}] force={}, pos={}",
+                node_forces.0 = quadtree.approximate_forces_on_body(
                     entity.id(),
-                    node_forces.0,
-                    pos.0
+                    pos.0,
+                    mass.0,
+                    theta.0,
+                    repel_force.0,
                 );
             });
     }

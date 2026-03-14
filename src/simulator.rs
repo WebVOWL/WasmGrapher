@@ -66,14 +66,6 @@ impl<'a> System<'a> for QuadTreeConstructor {
         for (position, mass) in (&positions, &masses).join() {
             quadtree.insert_id(position.0, mass.0);
         }
-        for (i, node) in quadtree.children.iter().enumerate() {
-            if node.is_root() {
-                info!("ROOT[{i}]: pos={}, mass={}", node.position(), node.mass(),);
-            } else {
-                info!("LEAF[{i}]: pos={}, mass={}", node.position(), node.mass(),);
-            }
-        }
-        info!("TOTAL: {}", quadtree.children.len());
     }
 }
 
