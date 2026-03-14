@@ -15,7 +15,7 @@ fn quadtree_insert(c: &mut Criterion) {
     let mut group = c.benchmark_group("QuadTree");
     group.bench_function("Insert", |b| {
         b.iter(|| {
-            qt.insert_id(
+            qt.insert(
                 black_box(Vec2::new(
                     rng.random_range((-w / 2.0)..(w / 2.0)),
                     rng.random_range((-w / 2.0)..(w / 2.0)),
@@ -31,7 +31,7 @@ fn quadtree_insert(c: &mut Criterion) {
 /// Barnes-Hut algorithm performance
 fn quadtree_barnes_hut(c: &mut Criterion) {
     const THETA: f32 = 1.0;
-    const REPEL_FORCE: f32 = 1e8;
+    const REPEL_FORCE: f32 = -1e8;
     const NODES: [u32; 5] = [3_000, 30_000, 300_000, 3_000_000, 30_000_000];
 
     let w = 1000.0;
@@ -41,20 +41,24 @@ fn quadtree_barnes_hut(c: &mut Criterion) {
 
     for i in NODES {
         let mut qt = QuadTree::new(bb.clone());
-        for _ in 0..i {
-            let v = Vec2::new(
-                rng.random_range((-w / 2.0)..(w / 2.0)),
-                rng.random_range((-w / 2.0)..(w / 2.0)),
-            );
-
-            qt.insert_id(black_box(v), rng.random_range(1.0..2000.0))
-                .expect("Insert should succeed");
+        let mut uid = (0..i).cycle();
+        for j in 0..i {
+            qt.insert_id(
+                j,
+                black_box(Vec2::new(
+                    rng.random_range((-w / 2.0)..(w / 2.0)),
+                    rng.random_range((-w / 2.0)..(w / 2.0)),
+                )),
+                rng.random_range(1.0..2000.0),
+            )
+            .expect("Insert should succeed");
         }
 
         group.throughput(criterion::Throughput::Elements(u64::from(i)));
         group.bench_function(BenchmarkId::new("Barnes-Hut", i), |b| {
             b.iter(|| {
                 qt.approximate_forces_on_body(
+                    black_box(uid.next().expect("should be Some")),
                     black_box(Vec2::new(
                         rng.random_range((-w / 2.0)..(w / 2.0)),
                         rng.random_range((-w / 2.0)..(w / 2.0)),
