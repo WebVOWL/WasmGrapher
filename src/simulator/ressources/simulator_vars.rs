@@ -2,7 +2,10 @@
 
 use glam::Vec2;
 
-/// How strong nodes should push others away.
+/// The magnitude of the force between two bodies.
+///
+/// A positive value causes nodes to attract each other, similar to gravity,
+/// while a negative value causes nodes to repel each other, similar to electrostatic charge.
 pub struct RepelForce(pub f32);
 
 /// How strong the edge force should be.
@@ -39,7 +42,7 @@ pub struct PointIntersection(pub i64);
 
 impl Default for RepelForce {
     fn default() -> Self {
-        Self(1e8)
+        Self(-1e8)
     }
 }
 
