@@ -1,5 +1,4 @@
 use glam::Vec2;
-use log::info;
 use rand::prelude::*;
 use smallvec::{SmallVec, smallvec};
 use std::{
@@ -263,8 +262,9 @@ impl QuadTree {
         let mut new_stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
         'outer: loop {
             for node_index in &stack {
-                // FIXME: Use a hashmap instead of O(n) vector shifting.
-                let node = self.children.remove(*node_index as usize);
+                let node = self.children.remove(node_index).ok_or_else(|| {
+                    format!("Failed to delete node at index {node_index}: index not found")
+                })?;
                 match node {
                     Node::Root { indices, .. } => {
                         for i in indices {
@@ -284,11 +284,12 @@ impl QuadTree {
             stack.clear();
             swap(&mut stack, &mut new_stack);
         }
+        Ok(())
     }
 
-    /// Unassigns the index of a node, making it the uninitialized value.
+    /// Unassigns the index of a leaf node in its parent, making it the uninitialized value.
     ///
-    /// If an update leaves all children of a root node uninitialized, the root is converted to a leaf.
+    /// If an update leaves all children of a root node uninitialized, the root node is deleted.
     /// This proceeds recursively up towards the root of the quadtree.
     ///
     /// Note that unassigned leaf nodes are NOT deleted.
@@ -327,7 +328,7 @@ impl QuadTree {
             {
                 // Unassign the deleted node from its parent.
                 self.unassign_index(section, *new_root_index, new_parents)?;
-        }
+            }
 
             return Ok(());
         }
@@ -344,54 +345,39 @@ impl QuadTree {
             ));
         };
 
+        let mut parent_indices: SmallVec<[u32; 128]> = smallvec![];
+
         let mut bb = self.boundary.clone();
+        let mut section = bb.section(delete_pos);
         let mut current_index = self.root;
-        let mut parent_index = UNINITIALIZED;
-        let del_mas = delete_node.mass();
+        let del_mass = delete_node.mass();
 
         // Traversing the tree until we find `delete_pos`.
-        while let Node::Root {
-            indices,
-            mass,
-            pos,
-            parent_index: parent,
-        } = &mut self.children[current_index as usize]
+        while let Node::Root { indices, mass, pos } =
+            &mut self.children.get_mut(&current_index).ok_or_else(|| {
+                format!("Failed to get index {current_index} while deleting point {delete_pos}")
+            })?
         {
-            let section = bb.section(delete_pos);
-
-            if pos.distance_squared(delete_pos) <= EPSILON {
-                parent_index = *parent;
-                break;
-            }
-
             // Update Mass and Pos of root to account for the removed node (when we find it).
-            *mass -= del_mas;
-            *pos -= delete_pos * del_mas;
+            *mass -= del_mass;
+            *pos -= delete_pos * del_mass;
 
+            parent_indices.push(current_index);
+
+            section = bb.section(delete_pos);
             current_index = indices[section as usize];
             bb = bb.sub_quadrant(section);
         }
 
-        // Check the final leaf node
-        if let Node::Leaf { mass, pos, parent_index: parent } = &self.children[current_index as usize]
-            && pos.distance_squared(delete_pos) <= EPSILON
-        {
-            parent_index = *parent;
-        }
-
-        if parent_index != UNINITIALIZED {
-            // Remove the node
-            self.delete_index(current_index);
-
+        // The leaf node has a parent.
+        if !parent_indices.is_empty() {
             // Set the deleted node to uninitialized in the parent node.
-            let section = bb.section(delete_pos);
-            self.unassign_index(section, parent_index);
-            return Ok(());
+            self.unassign_index(section, current_index, parent_indices.as_slice())?;
         }
 
-        Err(format!(
-            "Failed to delete point '{delete_pos}': point not found"
-        ))
+        self.delete_index(current_index)?;
+
+        Ok(())
     }
 
     /// Returns the quadtree node having position `query_pos`.
@@ -401,20 +387,22 @@ impl QuadTree {
         let mut root_index = self.root;
 
         // Traversing the tree until we find `query_pos`.
-        while let Node::Root { indices, pos, .. } = &self.children[root_index as usize] {
-            if pos.distance_squared(query_pos) <= EPSILON {
-                return Some(&self.children[root_index as usize]);
-            }
+        while let Some(Node::Root { indices, pos, .. }) = &self.children.get(&root_index) {
             let section = bb.section(query_pos);
             root_index = indices[section as usize];
+
+            if root_index == UNINITIALIZED {
+                return None;
+            }
+
             bb = bb.sub_quadrant(section);
         }
 
         // Check the final leaf node
-        if let Node::Leaf { pos, .. } = &self.children[root_index as usize]
-            && *pos == query_pos
+        if let Some(Node::Leaf { pos, .. }) = &self.children.get(&root_index)
+            && pos.distance_squared(query_pos) <= EPSILON
         {
-            return Some(&self.children[root_index as usize]);
+            return Some(&self.children[&root_index]);
         }
         None
     }
@@ -516,7 +504,7 @@ impl QuadTree {
         let mut new_stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
         'outer: loop {
             for node_index in &stack {
-                let parent = &self.children[*node_index as usize];
+                let parent = &self.children[node_index];
 
                 match parent {
                     Node::Root { indices, .. } => {
@@ -540,13 +528,13 @@ impl QuadTree {
                     }
                     Node::Leaf { id, .. } => {
                         if uid != *id {
-                        net_force += Self::repel_force(
-                            position,
-                            parent.position(),
-                            mass,
-                            parent.mass(),
-                            repel_force,
-                        );
+                            net_force += Self::repel_force(
+                                position,
+                                parent.position(),
+                                mass,
+                                parent.mass(),
+                                repel_force,
+                            );
                         }
                     }
                 }
