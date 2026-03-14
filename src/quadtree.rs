@@ -128,7 +128,7 @@ impl Node {
 #[derive(Debug, Default)]
 /// A quadtree capable of storing [`u32::MAX`] elements.
 pub struct QuadTree {
-    pub children: HashMap<u32, Node>,
+    children: HashMap<u32, Node>,
     pub boundary: BoundingBox2D,
     root: u32,
 }
