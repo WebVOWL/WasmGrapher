@@ -546,6 +546,8 @@ impl QuadTree {
 
 #[cfg(test)]
 mod test {
+    #![expect(clippy::unwrap_used, reason = "Testing is allowed to panic")]
+
     use super::*;
 
     #[test]
@@ -584,8 +586,8 @@ mod test {
         let mut qt: QuadTree = QuadTree::new(BoundingBox2D::new(Vec2::ZERO, 10.0, 10.0));
         // Insert first node
         let n1_mass = 5.0;
-        qt.insert_id(Vec2::new(-1.0, -1.0), n1_mass);
-        if let Node::Leaf { mass, .. } = qt.children[0] {
+        qt.insert(Vec2::new(-1.0, -1.0), n1_mass).unwrap();
+        if let Node::Leaf { mass, .. } = qt.children[&0] {
             assert_eq!(mass, n1_mass);
         } else {
             panic!("New node should be leaf")
@@ -594,19 +596,19 @@ mod test {
         // Insert second node in in the same quadrant but different sub quadrant
         //  N1-R-N2
         let n2_mass = 30.0;
-        qt.insert_id(Vec2::new(1.0, 1.0), n2_mass);
+        qt.insert(Vec2::new(1.0, 1.0), n2_mass).unwrap();
         // check root node
-        assert!(qt.children[0].is_root());
-        if let Node::Root { indices, mass, .. } = qt.children[0] {
+        assert!(qt.children[&0].is_root());
+        if let Node::Root { indices, mass, .. } = qt.children[&0] {
             assert_eq!(mass, n1_mass + n2_mass);
 
             // check node0
             assert_eq!(indices[0], 2);
-            assert!(qt.children[1].is_leaf());
+            assert!(qt.children[&1].is_leaf());
 
             // check node1
             assert_eq!(indices[3], 1);
-            assert!(qt.children[2].is_leaf());
+            assert!(qt.children[&2].is_leaf());
         }
     }
 
@@ -616,54 +618,113 @@ mod test {
         // Insert first node
         let n1_mass = 5.0;
         let n1_pos = Vec2::new(-1.0, -1.0);
-        qt.insert_id(n1_pos, n1_mass);
+        qt.insert(n1_pos, n1_mass).unwrap();
 
         // Insert second node
         let n2_mass = 1.0;
         let n2_pos = Vec2::new(-2.0, 1.0);
-        qt.insert_id(n2_pos, n2_mass);
+        qt.insert(n2_pos, n2_mass).unwrap();
 
         assert!(qt.contains(n1_pos));
         assert!(qt.contains(n2_pos));
     }
 
-    // #[ignore = "Test failing due to double insertion bug in QuadTree::insert()"]
     #[test]
     fn test_quadtree_delete() {
         let mut qt: QuadTree = QuadTree::new(BoundingBox2D::new(Vec2::ZERO, 10.0, 10.0));
         // Insert first node
         let n1_mass = 5.0;
         let n1_pos = Vec2::new(-1.0, -1.0);
-        qt.insert_id(n1_pos, n1_mass);
+        qt.insert(n1_pos, n1_mass).unwrap();
 
         // Insert second node in in the same quadrant but different sub quadrant
         let n2_mass = 30.0;
         let n2_pos = Vec2::new(1.0, 1.0);
-        qt.insert_id(n2_pos, n2_mass);
+        qt.insert(n2_pos, n2_mass).unwrap();
 
-        for node in &qt.children {
-            println!(
-                "BEFORE: pos={}, mass={}, is_root={}, is_leaf={}",
-                node.position(),
-                node.mass(),
-                node.is_root(),
-                node.is_leaf()
-            );
+        qt.delete_point(n2_pos).unwrap();
+        assert!(qt.leaves() == 1);
+
+        qt.delete_point(n1_pos).unwrap();
+        assert!(qt.is_empty());
+    }
+
+    #[ignore = "Delete doesn't remove all nodes as expected. Don't use delete until this test is passing"]
+    #[test]
+    fn test_quadtree_insert_delete() {
+        const NODES: u32 = 100_000;
+
+        let w = 1000.0;
+        let bb = BoundingBox2D::new(Vec2::ZERO, w, w);
+        let mut qt: QuadTree = QuadTree::new(bb);
+        let mut rng = StdRng::seed_from_u64(42);
+
+        let mut points = Vec::with_capacity(NODES as usize);
+
+        for _ in 0..NODES {
+            points.push(Vec2::new(
+                rng.random_range((-w / 2.0)..(w / 2.0)),
+                rng.random_range((-w / 2.0)..(w / 2.0)),
+            ));
         }
 
-        // FIXME: Test failing due to double insertion bug in QuadTree::insert()
-        assert!(qt.delete_point(n2_pos).is_ok());
-        for node in &qt.children {
-            println!(
-                "AFTER: pos={}, mass={}, is_root={}, is_leaf={}",
-                node.position(),
-                node.mass(),
-                node.is_root(),
-                node.is_leaf()
-            );
+        for i in 0..NODES {
+            qt.insert_id(i, points[i as usize], rng.random_range(1.0..2000.0))
+                .unwrap();
         }
-        assert!(qt.children.len() == 1);
-        assert!(qt.delete_point(n1_pos).is_ok());
-        assert!(qt.children.is_empty());
+
+        for point in points.iter().take(NODES as usize) {
+            // If points are too close to each other they're merged in the tree.
+            // Specifically if `p1.distance_squared(p2) <= EPSILON`.
+            // This means that we may not be able to delete the same amount of points as we inserted.
+            // Therefore, we silence the error here.
+            let _ = qt.delete_point(*point);
+        }
+
+        assert!(qt.is_empty());
+    }
+
+    #[test]
+    fn test_quadtree_barnes_hut() {
+        const NODES: u32 = 100_000;
+        const THETA: f32 = 1.0;
+        const REPEL_FORCE: f32 = -1e8;
+        const DELTA_TIME: f32 = 0.01;
+        const DAMPING: f32 = 0.9;
+
+        let w = 1000.0;
+        let bb = BoundingBox2D::new(Vec2::ZERO, w, w);
+        let mut qt: QuadTree = QuadTree::new(bb);
+        let mut rng = StdRng::seed_from_u64(42);
+
+        let mut velocities: Vec<Vec2> = Vec::with_capacity(NODES as usize);
+        let mut points = Vec::with_capacity(NODES as usize);
+        let mut masses = Vec::with_capacity(NODES as usize);
+
+        for _ in 0..NODES {
+            points.push(Vec2::new(
+                rng.random_range((-w / 2.0)..(w / 2.0)),
+                rng.random_range((-w / 2.0)..(w / 2.0)),
+            ));
+            masses.push(rng.random_range(1.0..2000.0));
+            velocities.push(Vec2::ZERO);
+        }
+
+        for i in 0..NODES {
+            qt.insert_id(i, points[i as usize], masses[i as usize])
+                .unwrap();
+        }
+
+        // Run Barnes-Hut for two iterations
+        for _ in 0..2 {
+            for i in 0..NODES {
+                let mass = masses[i as usize];
+                let force =
+                    qt.approximate_forces_on_body(i, points[i as usize], mass, THETA, REPEL_FORCE);
+
+                velocities[i as usize] += force / mass * DELTA_TIME * DAMPING;
+                points[i as usize] += velocities[i as usize] * DELTA_TIME;
+            }
+        }
     }
 }
