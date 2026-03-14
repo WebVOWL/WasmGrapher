@@ -423,8 +423,10 @@ impl QuadTree {
 
     /// Returns the amount of leaves in the tree.
     ///
-    /// This the size of tree in terms of points inserted
-    /// (root nodes are not inserted by the user!).
+    /// This the "visible" size of tree and corresponds to the number of points inserted.
+    ///
+    /// The total size of the tree is [`Self::roots`] + [`Self::leaves`].
+    /// However, please use [`Self::len`] for this, as it is much faster.
     ///
     /// This method's runtime is O(n).
     #[must_use]
@@ -440,8 +442,10 @@ impl QuadTree {
 
     /// Returns the amount of root nodes in the tree.
     ///
-    /// This the size of tree in terms of points inserted
-    /// (root nodes are not inserted by the user!).
+    /// This the "hidden" size of tree, as root nodes are not inserted, but generated automatically.
+    ///
+    /// The total size of the tree is [`Self::roots`] + [`Self::leaves`].
+    /// However, please use [`Self::len`] for this, as it is much faster.
     ///
     /// This method's runtime is O(n).
     #[must_use]
