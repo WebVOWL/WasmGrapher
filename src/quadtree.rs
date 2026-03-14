@@ -433,6 +433,54 @@ impl QuadTree {
         self.children.clear();
     }
 
+    /// Returns the amount of leaves in the tree.
+    ///
+    /// This the size of tree in terms of points inserted
+    /// (root nodes are not inserted by the user!).
+    ///
+    /// This method's runtime is O(n).
+    #[must_use]
+    pub fn leaves(&self) -> usize {
+        let mut count = 0;
+        for (index, node) in &self.children {
+            if let Node::Leaf { .. } = node {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    /// Returns the amount of root nodes in the tree.
+    ///
+    /// This the size of tree in terms of points inserted
+    /// (root nodes are not inserted by the user!).
+    ///
+    /// This method's runtime is O(n).
+    #[must_use]
+    pub fn roots(&self) -> usize {
+        let mut count = 0;
+        for (index, node) in &self.children {
+            if let Node::Root { .. } = node {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    /// Returns the number of nodes in the tree.
+    ///
+    /// This method's runtime is O(1).
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.children.len()
+    }
+
+    /// Returns `true` if the tree contains no elements.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.children.is_empty()
+    }
+
     /// The Barnes-Hut algorithm.
     ///
     /// Returns the net force acted upon the body for the entire tree.
