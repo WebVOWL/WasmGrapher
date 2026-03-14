@@ -74,28 +74,22 @@ pub enum Node {
         indices: [u32; 4],
         mass: f32,
         pos: Vec2,
-        parent_index: u32,
     },
     Leaf {
         mass: f32,
         pos: Vec2,
-        parent_index: u32,
+        id: u32, // Not Option<u32> to save 8 bytes on each Leaf
     },
 }
 
 impl Node {
     #[must_use]
-    const fn new_leaf(pos: Vec2, mass: f32, parent: u32) -> Self {
-        Self::Leaf { mass, pos, parent_index: parent }
+    const fn new_leaf(pos: Vec2, mass: f32, id: u32) -> Self {
+        Self::Leaf { mass, pos, id }
     }
     #[must_use]
-    const fn new_root(pos: Vec2, mass: f32, indices: [u32; 4], parent: u32) -> Self {
-        Self::Root {
-            indices,
-            mass,
-            pos,
-            parent_index: parent,
-        }
+    const fn new_root(pos: Vec2, mass: f32, indices: [u32; 4]) -> Self {
+        Self::Root { indices, mass, pos }
     }
 
     #[must_use]
@@ -124,9 +118,10 @@ impl Node {
     }
 
     #[must_use]
-    pub const fn parent(&self) -> u32 {
+    pub const fn id(&self) -> Option<u32> {
         match self {
-            Self::Root { parent_index: parent, .. } | Self::Leaf { parent_index: parent, .. } => *parent,
+            Self::Root { .. } => None,
+            Self::Leaf { id, .. } => Some(*id),
         }
     }
 }
@@ -141,7 +136,7 @@ pub struct QuadTree {
 
 impl QuadTree {
     #[must_use]
-    pub const fn new(boundary: BoundingBox2D) -> Self {
+    pub fn new(boundary: BoundingBox2D) -> Self {
         Self {
             root: 0,
             boundary,
@@ -162,12 +157,8 @@ impl QuadTree {
         self.insert_id(self.children.len() as u32, new_pos, new_mass)
     }
 
-    /// Inserts a new point into the quadtree.
-    ///
-    /// `new_id` is the ID of the point in the tree. It must uniquely identify a point.
-    ///
-    /// It is an error if `new_id` already exists in the quadtree.
-    pub fn insert_id(&mut self, new_id: u32, new_pos: Vec2, new_mass: f32) -> Result<(), String> {
+    /// Inserts a new point with a unique ID into the quadtree.
+    pub fn insert_id(&mut self, uid: u32, new_pos: Vec2, new_mass: f32) -> Result<(), String> {
         if self.children.len() == (UNINITIALIZED - 1) as usize {
             return Err(format!(
                 "Quadtree is full! (storing {}/{} elements)",
@@ -178,8 +169,8 @@ impl QuadTree {
 
         // With only one node there's no need to continue
         if self.children.is_empty() {
-            let new_leaf = Node::new_leaf(new_pos, new_mass, self.root);
-            self.children.insert(new_id, new_leaf);
+            let new_leaf = Node::new_leaf(new_pos, new_mass, uid);
+            self.children.insert(self.children.len() as u32, new_leaf);
             return Ok(());
         }
 
@@ -190,7 +181,10 @@ impl QuadTree {
         // Traversing the tree until we find an empty quadrant for the new leaf.
         while let Node::Root {
             indices, mass, pos, ..
-        } = &mut self.children[&root_index]
+        } = &mut self
+            .children
+            .get_mut(&root_index)
+            .ok_or_else(|| format!("Failed to get index {root_index} while inserting"))?
         {
             // Update Mass and Pos of root to account for the new leaf.
             *mass += new_mass;
@@ -208,99 +202,33 @@ impl QuadTree {
         }
 
         // If new leaf is too close to current leaf we merge
-        if let Node::Leaf { mass, pos, parent_index: parent } = self.children[&root_index]
-            && pos.distance(new_pos) < EPSILON
+        if let Node::Leaf { mass, pos, id } = self.children[&root_index]
+            && pos.distance_squared(new_pos) < EPSILON
         {
             let m: f32 = mass + new_mass;
-            self.children[&root_index] = Node::new_leaf(pos, m, parent);
+            self.children
+                .entry(root_index)
+                .and_modify(|node| *node = Node::new_leaf(pos, m, id));
             return Ok(());
         }
 
-        if self.children.contains_key(&new_id) {
-            return Err(format!("ID {new_id} already present"));
-        }
-        self.children
-            .insert(new_id, Node::new_leaf(new_pos, new_mass, root_index));
+        self.children.insert(
+            self.children.len() as u32,
+            Node::new_leaf(new_pos, new_mass, uid),
+        );
 
         // Create new root until leaf and new leaf are in different sections
-        while let Node::Leaf { mass, pos, parent_index } = self.children[&root_index] {
+        while let Node::Leaf { mass, pos, id } = self.children[&root_index] {
             let mut fin = false;
 
-
-
-
-            let section = bb.section(pos);
-            let mut ind = [UNINITIALIZED, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED];
-            ind[section as usize] = root_index;
-
-
-            let section = bb.section(new_pos);
-            // If section of the new root is empty we can set it and exit
-            if ind[section as usize] == UNINITIALIZED {
-                ind[section as usize] = new_index;
-                fin = true;
-            }
-
-
-            let new_root = Node::new_root(
-                pos * mass + new_pos * new_mass,
-                mass + new_mass,
-                ind,
-                parent_index,
-            );
-
-            let new_root_index = self.children.len() as u32;
-            self.children.insert(new_root_index, new_root);
-
-            // Set the parent of the old leaf to the new root
-            self.update_index(section, parent_index, new_root_index);
-
-            self.update_index(section, root_index, new_index);
-
-
-            let old_node = Node::new_leaf(pos, mass, root_index);
-            self.children.insert(self.children.len() as u32, old_node);
-
-            let old_index = self.children.len() - 1;
-            let section = bb.section(pos);
-            let mut ind = [UNINITIALIZED, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED];
-            ind[section as usize] = old_index as u32;
-
-            let section = bb.section(new_pos);
-
-            // If section of the new root is empty we can set it and exit
-            if ind[section as usize] == UNINITIALIZED {
-                ind[section as usize] = new_index;
-                fin = true;
-            }
-
-            // sets the old leaf index to the new root
-            let new_root = Node::new_root(
-                pos * mass + new_pos * new_mass,
-                mass + new_mass,
-                ind,
-                parent,
-            );
-            self.children.insert(k, v)
-            // self.children[root_index as usize] = new_root;
-
-            if fin {
-                break;
-            }
-
-            root_index = old_index as u32;
-
-            bb = bb.sub_quadrant(section);
-
-            // ------------------
-
             // Pushes the old leaf to the back of the vector and inserts its index into the index array of the new root
-            let old_node = Node::new_leaf(pos, mass, root_index);
-            self.children.push(old_node);
-            let old_index = self.children.len() - 1;
+            let old_node = Node::new_leaf(pos, mass, id);
+            let old_index = self.children.len() as u32;
+            self.children.insert(old_index, old_node);
+
             let section = bb.section(pos);
             let mut ind = [UNINITIALIZED, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED];
-            ind[section as usize] = old_index as u32;
+            ind[section as usize] = old_index;
 
             let section = bb.section(new_pos);
 
@@ -310,41 +238,22 @@ impl QuadTree {
                 fin = true;
             }
 
-            // sets the old leaf index to the new root
-            let new_root = Node::new_root(
-                pos * mass + new_pos * new_mass,
-                mass + new_mass,
-                ind,
-                parent,
-            );
-            self.children[root_index as usize] = new_root;
+            // Sets the old leaf index to the new root (thus the leaf index of the old leaf's parent now points to the new root)
+            let new_root = Node::new_root(pos * mass + new_pos * new_mass, mass + new_mass, ind);
+            self.children
+                .entry(root_index)
+                .and_modify(|node| *node = new_root);
 
             if fin {
                 break;
             }
 
-            root_index = old_index as u32;
+            root_index = old_index;
 
             bb = bb.sub_quadrant(section);
         }
 
         Ok(())
-    }
-
-    /// Update the index of a node.
-    ///
-    /// If `root_index` is a root_node, set the index of the child in `section` of the root node to `new_index`.
-    /// If `root_index` is a leaf node, set the parent index of the leaf node to `new_index`
-    fn update_index(&self, section: u8, root_index: u32, new_index: u32)  {
-        match &mut self.children[&root_index] {
-            Node::Root { indices, mass, pos, parent_index } => {
-                indices[section as usize] = new_child_index;
-
-            },
-            Node::Leaf { mass, pos, parent_index } =>{
-                parent_index = &mut new_index;
-            },
-        }
     }
 
     /// Removes a node and all its descendants from the quadtree.
@@ -384,40 +293,50 @@ impl QuadTree {
     ///
     /// If an update leaves all children of a root node uninitialized, the root is converted to a leaf.
     /// This proceeds recursively up towards the root of the quadtree.
-    // / If an update leaves all children of a root node uninitialized, the root node is deleted.
-    // / This proceeds recursively up towards the root of the quadtree, but stops at the tree root.
-    // / The reason for this is that root nodes are not user-defined points, but rather points
-    // / generated by the quadtree.
     ///
-    /// Note that position and mass are unaffected by this method.
-    fn unassign_index(&mut self, section: u8, root_index: u32) {
-        if let Node::Root {
-            indices,
-            pos,
-            mass,
-            parent_index: parent,
-        } = &mut self.children[root_index as usize]
-        {
+    /// Note that unassigned leaf nodes are NOT deleted.
+    fn unassign_index(
+        &mut self,
+        section: u8,
+        root_index: u32,
+        parents: &[u32],
+    ) -> Result<(), String> {
+        if let Some(Node::Root { indices, pos, mass }) = &mut self.children.get_mut(&root_index) {
             indices[section as usize] = UNINITIALIZED;
 
             if indices.iter().all(|i| *i == UNINITIALIZED) {
-                // All children are uninitialized. We can convert the node into a leaf.
-                self.children[root_index as usize] = Node::new_leaf(*pos, *mass, *parent);
+                // All children are uninitialized. We can delete the node.
+                self.delete_index(root_index);
 
-                //     let p = *parent;
-                //     {
-                //         // Unassign the deleted node from its parent.
-                //         self.unassign_index(section, p);
-                //     }
-                //     // All children are uninitialized. We can delete the node.
-                //     self.delete_index(root_index);
-                // }
+                let last = parents.len().saturating_sub(1);
+                let before_last = last.saturating_sub(1);
+
+                if let (Some(new_root_index), Some(new_parents)) =
+                    (parents.get(last), parents.get(0..before_last))
+                {
+                    // Unassign the deleted node from its parent.
+                    self.unassign_index(section, *new_root_index, new_parents)?;
+                }
             }
+            return Ok(());
         }
 
-        if let Node::Leaf { parent_index: parent, .. } = &self.children[root_index as usize] {
-            self.unassign_index(section, *parent);
+        if let Some(Node::Leaf { .. }) = &self.children.get(&root_index) {
+            let last = parents.len().saturating_sub(1);
+            let before_last = last.saturating_sub(1);
+
+            if let (Some(new_root_index), Some(new_parents)) =
+                (parents.get(last), parents.get(0..before_last))
+            {
+                // Unassign the deleted node from its parent.
+                self.unassign_index(section, *new_root_index, new_parents)?;
         }
+
+            return Ok(());
+        }
+        Err(format!(
+            "Cannot unassign index {root_index}: index not found"
+        ))
     }
 
     /// Removes the point `delete_pos` from the quadtree, if it exists.
@@ -521,7 +440,9 @@ impl QuadTree {
     ///
     /// Returns the net force acted upon the body for the entire tree.
     ///
-    /// `position` is position of the body to compute forces on.
+    /// `uid` is the unique ID of the body to compute forces on.
+    ///
+    /// `position` is position of the body.
     ///
     /// `mass` is the mass of the body.
     ///
@@ -531,6 +452,7 @@ impl QuadTree {
     #[must_use]
     pub fn approximate_forces_on_body(
         &self,
+        uid: u32,
         position: Vec2,
         mass: f32,
         theta: f32,
@@ -553,7 +475,6 @@ impl QuadTree {
 
                 match parent {
                     Node::Root { indices, .. } => {
-                        info!("Parent[{node_index}]");
                         let center_mass = parent.position();
                         let dist = center_mass.distance(position);
                         if s / dist < theta {
@@ -572,8 +493,8 @@ impl QuadTree {
                             }
                         }
                     }
-                    Node::Leaf { .. } => {
-                        info!("Leaf[{node_index}]");
+                    Node::Leaf { id, .. } => {
+                        if uid != *id {
                         net_force += Self::repel_force(
                             position,
                             parent.position(),
@@ -581,6 +502,7 @@ impl QuadTree {
                             parent.mass(),
                             repel_force,
                         );
+                        }
                     }
                 }
             }
@@ -593,7 +515,6 @@ impl QuadTree {
             stack.clear();
             swap(&mut stack, &mut new_stack);
         }
-        info!("Net force: {net_force}");
         net_force.clamp(
             Vec2::new(-100_000.0, -100_000.0),
             Vec2::new(100_000.0, 100_000.0),
@@ -609,18 +530,12 @@ impl QuadTree {
         if length_sqr == 0.0 {
             let mut rng = rand::rng();
 
-            let init =
-                format!("component_form_init={component_form}, length_sqr_init={length_sqr}");
             component_form.x += rng.random_range::<f32, Range<f32>>(-1.0_f32..1.0_f32);
             component_form.y += rng.random_range::<f32, Range<f32>>(-1.0_f32..1.0_f32);
             length_sqr = component_form.length_squared();
-            let lensq = format!("{length_sqr}");
             if length_sqr < 1.0 {
                 length_sqr = f32::sqrt(length_sqr);
             }
-            info!(
-                "{init}, component_form={component_form}, length_sqrt1={lensq}, length_sqr={length_sqr}, pos1={pos1}, pos2={pos2}"
-            );
         }
 
         let f = repel_force * (mass1 * mass2).abs() / length_sqr;

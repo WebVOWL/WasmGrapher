@@ -43,11 +43,12 @@ struct QuadTreeConstructor;
 impl<'a> System<'a> for QuadTreeConstructor {
     type SystemData = (
         Write<'a, QuadTree>,
+        Entities<'a>,
         ReadStorage<'a, Position>,
         ReadStorage<'a, Mass>,
     );
 
-    fn run(&mut self, (mut quadtree, positions, masses): Self::SystemData) {
+    fn run(&mut self, (mut quadtree, entities, positions, masses): Self::SystemData) {
         let mut min = Vec2::INFINITY;
         let mut max = Vec2::NEG_INFINITY;
         let mut count = 0;
@@ -63,8 +64,8 @@ impl<'a> System<'a> for QuadTreeConstructor {
         quadtree.clear();
         quadtree.boundary = BoundingBox2D::new((dir / 2.0) + min, dir[0], dir[1]);
 
-        for (position, mass) in (&positions, &masses).join() {
-            quadtree.insert_id(position.0, mass.0);
+        for (entity, position, mass) in (&entities, &positions, &masses).join() {
+            quadtree.insert_id(entity.id(), position.0, mass.0);
         }
     }
 }
