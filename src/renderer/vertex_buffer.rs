@@ -383,7 +383,8 @@ pub fn build_line_and_arrow_vertices(
             (4.0f32.mul_add(center[1], -start[1]) - end[1]) * 0.5,
         ];
 
-        // Calculate tangent at end for arrow
+        // Calculate tangents for arrow placement
+        let tangent_at_start = normalize(bezier_tangent(start, ctrl, end, 0.0));
         let tangent_at_end = normalize(bezier_tangent(start, ctrl, end, 1.0));
 
         // Generate strip vertices
@@ -465,22 +466,26 @@ pub fn build_line_and_arrow_vertices(
         let perp = [-dir[1], dir[0]];
 
         if line_type == 4 {
-            // Diamond: generate two triangles
+            // Diamond: place at the start of the edge instead of the end
+            let tip = start;
+            let dir = tangent_at_start;
+            let perp = [-dir[1], dir[0]];
+
             let diamond_length = SHADER_DIAMOND_LENGTH_PX;
             let diamond_width = SHADER_DIAMOND_WIDTH_PX;
 
             let diamond_tip_padded = [
-                dir[0].mul_add(ARROW_PADDING_PX, tip[0]),
-                dir[1].mul_add(ARROW_PADDING_PX, tip[1]),
+                dir[0].mul_add(-ARROW_PADDING_PX, tip[0]),
+                dir[1].mul_add(-ARROW_PADDING_PX, tip[1]),
             ];
             let diamond_back_padded = [
-                dir[0].mul_add(-(diamond_length + ARROW_PADDING_PX), tip[0]),
-                dir[1].mul_add(-(diamond_length + ARROW_PADDING_PX), tip[1]),
+                dir[0].mul_add(diamond_length + ARROW_PADDING_PX, tip[0]),
+                dir[1].mul_add(diamond_length + ARROW_PADDING_PX, tip[1]),
             ];
 
             let diamond_center = [
-                (dir[0] * diamond_length).mul_add(-0.5, tip[0]),
-                (dir[1] * diamond_length).mul_add(-0.5, tip[1]),
+                (dir[0] * diamond_length * 0.5).mul_add(1.0, tip[0]),
+                (dir[1] * diamond_length * 0.5).mul_add(1.0, tip[1]),
             ];
             let halfw_padded = diamond_width.mul_add(0.5, ARROW_PADDING_PX);
 
@@ -518,7 +523,6 @@ pub fn build_line_and_arrow_vertices(
             arrow_vertices.push(common(diamond_left_padded));
         } else {
             // Simple triangular arrowhead
-
             let tip_padded = [
                 dir[0].mul_add(ARROW_PADDING_PX, tip[0]),
                 dir[1].mul_add(ARROW_PADDING_PX, tip[1]),
