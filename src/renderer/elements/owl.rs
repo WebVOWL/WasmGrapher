@@ -45,6 +45,8 @@ pub enum OwlNode {
     IntersectionOf,
     Thing,
     UnionOf,
+    Real,
+    Rational,
 }
 
 impl OwlNode {
@@ -61,6 +63,8 @@ impl OwlNode {
             Self::IntersectionOf => "owl:intersectionOf",
             Self::Thing => "owl:thing",
             Self::UnionOf => "owl:unionOf",
+            Self::Real => "owl:real",
+            Self::Rational => "owl:rational",
         }
     }
 }
@@ -78,6 +82,8 @@ impl From<OwlNode> for u32 {
             OwlNode::IntersectionOf => 30007,
             OwlNode::Thing => 30008,
             OwlNode::UnionOf => 30009,
+            OwlNode::Real => 30010,
+            OwlNode::Rational => 30011,
         }
     }
 }

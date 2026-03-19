@@ -13,8 +13,9 @@ use crate::{
             element_type::ElementType,
             generic::*,
             owl::{OwlEdge, OwlNode, OwlType},
-            rdf::{RdfEdge, RdfType},
+            rdf::{RdfEdge, RdfNode, RdfType},
             rdfs::{RdfsEdge, RdfsNode, RdfsType},
+            xsd::{XSDNode, XSDType},
         },
         events::RenderEvent,
         node_shape::NodeShape,
@@ -287,6 +288,9 @@ impl State {
                     OwlNode::Thing => {
                         node_shapes.push(NodeShape::Circle { r: 0.7 });
                     }
+                    OwlNode::Real | OwlNode::Rational => {
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 })
+                    }
                 },
                 ElementType::Owl(OwlType::Edge(edge)) => match edge {
                     OwlEdge::DatatypeProperty
@@ -312,7 +316,11 @@ impl State {
                         node_shapes.push(NodeShape::Rectangle { w: 0.7, h: 1.0 });
                     }
                 },
-                // ElementType::Rdf(RdfType::Node(node)) => todo!(),
+                ElementType::Rdf(RdfType::Node(node)) => match node {
+                    RdfNode::HTML | RdfNode::PlainLiteral | RdfNode::XMLLiteral => {
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 })
+                    }
+                },
                 ElementType::Rdf(RdfType::Edge(edge)) => match edge {
                     RdfEdge::RdfProperty => {
                         node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
@@ -322,6 +330,53 @@ impl State {
                     node_shapes.push(NodeShape::Circle { r: 1.0 });
                 }
                 ElementType::Generic(generic_type) => todo!(),
+                ElementType::Xsd(XSDType::Node(node)) => match node {
+                    XSDNode::Int
+                    | XSDNode::Integer
+                    | XSDNode::NegativeInteger
+                    | XSDNode::NonNegativeInteger
+                    | XSDNode::NonPositiveInteger
+                    | XSDNode::PositiveInteger
+                    | XSDNode::UnsignedInt
+                    | XSDNode::UnsignedLong
+                    | XSDNode::UnsignedShort
+                    | XSDNode::Decimal
+                    | XSDNode::Float
+                    | XSDNode::Double
+                    | XSDNode::Short
+                    | XSDNode::Long
+                    | XSDNode::Date
+                    | XSDNode::DataTime
+                    | XSDNode::DateTimeStamp
+                    | XSDNode::Duration
+                    | XSDNode::GDay
+                    | XSDNode::GMonth
+                    | XSDNode::GMonthDay
+                    | XSDNode::GYear
+                    | XSDNode::GYearMonth
+                    | XSDNode::Time
+                    | XSDNode::AnyURI
+                    | XSDNode::ID
+                    | XSDNode::IDREF
+                    | XSDNode::Language
+                    | XSDNode::NMTOKEN
+                    | XSDNode::Name
+                    | XSDNode::NCName
+                    | XSDNode::QName
+                    | XSDNode::String
+                    | XSDNode::Token
+                    | XSDNode::NormalizedString
+                    | XSDNode::NOTATION
+                    | XSDNode::AnySimpleType
+                    | XSDNode::Base64Binary
+                    | XSDNode::Boolean
+                    | XSDNode::ENTITY
+                    | XSDNode::UnsignedByte
+                    | XSDNode::Byte
+                    | XSDNode::HexBinary => {
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
+                    }
+                },
             }
             positions.push([
                 f32::fract(f32::sin(i as f32 * 12_345.679)),
@@ -1959,6 +2014,9 @@ impl State {
                     OwlNode::Thing => {
                         node_shapes.push(NodeShape::Circle { r: 0.7 });
                     }
+                    OwlNode::Real | OwlNode::Rational => {
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 })
+                    }
                 },
                 ElementType::Owl(OwlType::Edge(edge)) => match edge {
                     OwlEdge::DatatypeProperty
@@ -1984,6 +2042,11 @@ impl State {
                         node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
                     }
                 },
+                ElementType::Rdf(RdfType::Node(node)) => match node {
+                    RdfNode::HTML | RdfNode::PlainLiteral | RdfNode::XMLLiteral => {
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 })
+                    }
+                },
                 ElementType::Rdf(RdfType::Edge(edge)) => match edge {
                     RdfEdge::RdfProperty => {
                         node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
@@ -1993,6 +2056,53 @@ impl State {
                     node_shapes.push(NodeShape::Circle { r: 1.0 });
                 }
                 ElementType::Generic(_generic_type) => todo!(),
+                ElementType::Xsd(XSDType::Node(node)) => match node {
+                    XSDNode::Int
+                    | XSDNode::Integer
+                    | XSDNode::NegativeInteger
+                    | XSDNode::NonNegativeInteger
+                    | XSDNode::NonPositiveInteger
+                    | XSDNode::PositiveInteger
+                    | XSDNode::UnsignedInt
+                    | XSDNode::UnsignedLong
+                    | XSDNode::UnsignedShort
+                    | XSDNode::Decimal
+                    | XSDNode::Float
+                    | XSDNode::Double
+                    | XSDNode::Short
+                    | XSDNode::Long
+                    | XSDNode::Date
+                    | XSDNode::DataTime
+                    | XSDNode::DateTimeStamp
+                    | XSDNode::Duration
+                    | XSDNode::GDay
+                    | XSDNode::GMonth
+                    | XSDNode::GMonthDay
+                    | XSDNode::GYear
+                    | XSDNode::GYearMonth
+                    | XSDNode::Time
+                    | XSDNode::AnyURI
+                    | XSDNode::ID
+                    | XSDNode::IDREF
+                    | XSDNode::Language
+                    | XSDNode::NMTOKEN
+                    | XSDNode::Name
+                    | XSDNode::NCName
+                    | XSDNode::QName
+                    | XSDNode::String
+                    | XSDNode::Token
+                    | XSDNode::NormalizedString
+                    | XSDNode::NOTATION
+                    | XSDNode::AnySimpleType
+                    | XSDNode::Base64Binary
+                    | XSDNode::Boolean
+                    | XSDNode::ENTITY
+                    | XSDNode::UnsignedByte
+                    | XSDNode::Byte
+                    | XSDNode::HexBinary => {
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
+                    }
+                },
             }
         }
 
