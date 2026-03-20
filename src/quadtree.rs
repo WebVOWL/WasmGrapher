@@ -458,6 +458,7 @@ impl QuadTree {
 
     /// Returns the net force acted upon the body for the entire tree.
     /// This is calculated using the Barnes-Hut algorithm.
+    ///
     /// `uid` is the unique ID of the body to compute forces on.
     ///
     /// `position` is position of the body.
