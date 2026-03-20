@@ -335,6 +335,7 @@ impl QuadTree {
     //     ))
     // }
 
+    // FIXME: Delete method is currently broken (it's dependencies are commented out as well)
     // /// Removes the point `delete_pos` from the quadtree, if it exists.
     // pub fn delete_point(&mut self, delete_pos: Vec2) -> Result<(), String> {
     //     let Some(delete_node) = self.query_point(delete_pos) else {
