@@ -121,7 +121,7 @@ impl XSDNode {
             Self::String => "xsd:string",
             Self::Token => "xsd:token",
             Self::NormalizedString => "xsd:normalizedString",
-            Self::Notation => "xsd:nOTATION",
+            Self::Notation => "xsd:notation",
             Self::AnySimpleType => "xsd:anySimpleType",
             Self::Base64Binary => "xsd:base64Binary",
             Self::Boolean => "xsd:boolean",
