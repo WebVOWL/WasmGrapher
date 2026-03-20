@@ -22,7 +22,7 @@ pub mod prelude {
     pub use crate::graph_data::GraphDisplayData;
     pub use crate::renderer::elements::{
         characteristic::Characteristic, element_type::ElementType, generic::*, owl::*, rdf::*,
-        rdfs::*,
+        rdfs::*, xsd::*,
     };
     pub use crate::renderer::events::RenderEvent;
     pub use crate::simulator::ressources::events::SimulatorEvent;

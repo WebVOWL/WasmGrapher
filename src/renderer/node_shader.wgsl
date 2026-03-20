@@ -22,8 +22,7 @@ struct ViewUniforms {
     resolution: vec2<f32>,
     pan: vec2<f32>,
     zoom: f32,
-    _padding: vec2<f32>
-};
+    _padding: vec2<f32>};
 
 @group(0) @binding(0)
 var<uniform> u_view: ViewUniforms;
@@ -40,7 +39,7 @@ fn vs_node_main(
 
     // compute non-uniform scale for shape geometry
     var scale_xy = vec2<f32>(in.shape_dimensions.x, in.shape_dimensions.y);
-    if (in.shape == 0u) {
+    if in.shape == 0u {
         // circle -> use same x and y
         scale_xy = vec2<f32>(in.shape_dimensions.x, in.shape_dimensions.x);
     }
@@ -72,7 +71,7 @@ fn vs_node_main(
 
 // parameters
 const BORDER_THICKNESS = 0.03;   // how thick the border ring is
-const EDGE_SOFTNESS    = 0.02;   // anti-aliasing
+const EDGE_SOFTNESS = 0.02;   // anti-aliasing
 const RECT_SCALE = vec2(0.9, 0.25);
 // polar angle based repeating pattern (dotted border)
 const PI = 3.14159265;
@@ -96,7 +95,7 @@ fn fs_node_main(in: VertOut) -> @location(0) vec4<f32> {
     let col = draw_node_by_type(in.v_element_type, in.v_uv, in.v_shape_dimensions, in.v_hovered);
 
     // Prevent (almost) fully transparent fragments from writing to the depth buffer
-    if (col.a < 0.01) {
+    if col.a < 0.01 {
         discard;
     }
 
@@ -115,7 +114,7 @@ fn draw_class(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
                     * (1.0 - smoothstep(r, r + aa_softness_world, d));
 
     var fill_color = LIGHT_BLUE;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -142,7 +141,7 @@ fn draw_external_class(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
                     * (1.0 - smoothstep(r, r + aa_softness_world, d));
 
     var fill_color = DARK_BLUE;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -182,7 +181,7 @@ fn draw_thing(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
     border_mask *= dot_mask;
 
     var fill_color = vec3<f32>(1.0);
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -218,7 +217,7 @@ fn draw_equivalent_class(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
         (1.0 - smoothstep(r, r + aa_softness_world, d));
 
     var fill_color = LIGHT_BLUE;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -253,23 +252,19 @@ fn draw_union(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
     let d2 = distance(v_uv, c2);
 
     // borders
-    let inner_border_1 =
-        smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d1) *
+    let inner_border_1 = smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d1) *
         (1.0 - smoothstep(inner_border_outer_r, inner_border_outer_r + aa_softness_world, d1));
 
-    let inner_border_2 =
-        smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d2) *
+    let inner_border_2 = smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d2) *
         (1.0 - smoothstep(inner_border_outer_r, inner_border_outer_r + aa_softness_world, d2));
 
     // Combine borders additively
     let inner_border_mask = min(inner_border_1 + inner_border_2, 1.0);
 
     // outer region
-    let outer_fill_mask =
-        1.0 - smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d_outer);
+    let outer_fill_mask = 1.0 - smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d_outer);
 
-    let outer_border_mask =
-        smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d_outer) *
+    let outer_border_mask = smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d_outer) *
         (1.0 - smoothstep(r, r + aa_softness_world, d_outer));
 
     // inner circle masks
@@ -283,7 +278,7 @@ fn draw_union(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
     // colors
     let inner_fill_color = SET_COLOR;
     var outer_fill_color = LIGHT_BLUE;
-    if (hovered == 1u) {
+    if hovered == 1u {
         outer_fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -299,7 +294,7 @@ fn draw_union(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
     return vec4<f32>(col, alpha);
 }
 
-fn draw_intersection_of(v_uv: vec2<f32>, hovered: u32)  -> vec4<f32> {
+fn draw_intersection_of(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
     let r = 0.48;
     let border_gap = 0.35;
     let aa_softness_world = EDGE_SOFTNESS / u_view.zoom;
@@ -319,21 +314,17 @@ fn draw_intersection_of(v_uv: vec2<f32>, hovered: u32)  -> vec4<f32> {
     let d2 = distance(v_uv, c2);
 
     // borders
-    let inner_border_1 =
-        smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d1) *
+    let inner_border_1 = smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d1) *
         (1.0 - smoothstep(inner_border_outer_r, inner_border_outer_r + aa_softness_world, d1));
-    let inner_border_2 =
-        smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d2) *
+    let inner_border_2 = smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d2) *
         (1.0 - smoothstep(inner_border_outer_r, inner_border_outer_r + aa_softness_world, d2));
 
     // Combine borders additively
     let inner_border_mask = min(inner_border_1 + inner_border_2, 1.0);
 
     // outer region
-    let outer_fill_mask =
-        1.0 - smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d_outer);
-    let outer_border_mask =
-        smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d_outer) *
+    let outer_fill_mask = 1.0 - smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d_outer);
+    let outer_border_mask = smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d_outer) *
         (1.0 - smoothstep(r, r + aa_softness_world, d_outer));
 
     // inner circle masks
@@ -353,7 +344,7 @@ fn draw_intersection_of(v_uv: vec2<f32>, hovered: u32)  -> vec4<f32> {
     // colors
     let inner_fill_color = SET_COLOR;
     var outer_fill_color = LIGHT_BLUE;
-    if (hovered == 1u) {
+    if hovered == 1u {
         outer_fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -382,23 +373,20 @@ fn draw_complement(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
     let inner_fill_mask = 1.0 - smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d);
 
     // solid outer fill area between inner and outer borders
-    let outer_fill_mask =
-        smoothstep(inner_border_outer_r, inner_border_outer_r + aa_softness_world, d) *
+    let outer_fill_mask = smoothstep(inner_border_outer_r, inner_border_outer_r + aa_softness_world, d) *
         (1.0 - smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d));
 
     // borders
-    let inner_border_mask =
-        smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d) *
+    let inner_border_mask = smoothstep(inner_border_inner_r, inner_border_inner_r + aa_softness_world, d) *
         (1.0 - smoothstep(inner_border_outer_r, inner_border_outer_r + aa_softness_world, d));
 
-    let outer_border_mask =
-        smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d) *
+    let outer_border_mask = smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d) *
         (1.0 - smoothstep(r, r + aa_softness_world, d));
 
     // colors
     let inner_fill_color = SET_COLOR;
     var outer_fill_color = LIGHT_BLUE;
-    if (hovered == 1u) {
+    if hovered == 1u {
         outer_fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -427,7 +415,7 @@ fn draw_deprecated_class(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
                     * (1.0 - smoothstep(r, r + aa_softness_world, d));
 
     var fill_color = DEPRECATED_COLOR;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -465,7 +453,7 @@ fn draw_anonymous_class(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
     border_mask *= dot_mask;
 
     var fill_color = LIGHT_BLUE;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -485,7 +473,7 @@ fn draw_literal(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32) -> v
     let dot_count_rect = 11.0;
     let dot_radius_rect = 0.3;
     var fill_color = LITERAL_COLOR;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
     let border_thickness_rect = 0.02;
@@ -504,11 +492,11 @@ fn draw_literal(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32) -> v
 
     // mask selection
     var fill_mask = 0.0;
-    if(inside_inner) {
+    if inside_inner {
         fill_mask = 1.0;
     }
     var border_mask = 0.0;
-    if(inside_rect && !inside_inner) {
+    if inside_rect && !inside_inner {
         border_mask = 1.0;
     }
 
@@ -519,19 +507,19 @@ fn draw_literal(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32) -> v
 
     // nearest boundary point
     var bp = p;
-    if(abs(p.x) > half_size.x - border_thickness_rect && abs(p.x) > abs(p.y)) {
+    if abs(p.x) > half_size.x - border_thickness_rect && abs(p.x) > abs(p.y) {
         bp.x = sign(p.x) * half_size.x;
-    } else if(abs(p.y) > half_size.y - border_thickness_rect) {
+    } else if abs(p.y) > half_size.y - border_thickness_rect {
         bp.y = sign(p.y) * half_size.y;
     }
 
     // convert boundary point to perimeter offset
     var offset = 0.0;
-    if(abs(bp.y - half_size.y) < 0.0001) {         // top
+    if abs(bp.y - half_size.y) < 0.0001 {         // top
         offset = bp.x + half_size.x;
-    } else if(abs(bp.x - half_size.x) < 0.0001) {  // right
+    } else if abs(bp.x - half_size.x) < 0.0001 {  // right
         offset = width + (half_size.y - bp.y);
-    } else if(abs(bp.y + half_size.y) < 0.0001) {  // bottom
+    } else if abs(bp.y + half_size.y) < 0.0001 {  // bottom
         offset = width + height + (half_size.x - bp.x);
     } else {                                       // left
         offset = width * 2 + height + (bp.y + half_size.y);
@@ -570,7 +558,7 @@ fn draw_rdfs_class(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
                     * (1.0 - smoothstep(r, r + aa_softness_world, d));
 
     var fill_color = RDFS_COLOR;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -608,7 +596,7 @@ fn draw_rdfs_resource(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
     border_mask *= dot_mask;
 
     var fill_color = RDFS_COLOR;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -629,7 +617,7 @@ fn draw_datatype(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32) -> 
     let aa_softness_world = EDGE_SOFTNESS / u_view.zoom;
 
     var fill_color = LITERAL_COLOR;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -671,12 +659,12 @@ fn draw_property(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, base_color: vec3<
     let inside_rect = inside_x && inside_y;
     // mask selection
     var fill_mask = 0.0;
-    if(inside_rect) {
+    if inside_rect {
         fill_mask = 1.0;
     }
 
     var fill_color = base_color;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -691,7 +679,7 @@ fn draw_property(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, base_color: vec3<
 
 fn draw_inverse_property(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32) -> vec4<f32> {
     var fill_color = LIGHT_BLUE;
-    if (hovered == 1u) {
+    if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -713,7 +701,7 @@ fn draw_inverse_property(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: 
     let inside_rect2 = inside_x2 && inside_y2;
     // mask selection
     var fill_mask = 0.0;
-    if(inside_rect1 || inside_rect2) {
+    if inside_rect1 || inside_rect2 {
         fill_mask = 1.0;
     }
 
@@ -757,11 +745,9 @@ fn draw_disjoint_with(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32
     let border_outer_r = circle_r + BORDER_THICKNESS * 0.4;
     let border_inner_r = circle_r - BORDER_THICKNESS * 0.4;
 
-    let border_1 =
-        smoothstep(border_inner_r, border_inner_r + aa_softness_world, d1) *
+    let border_1 = smoothstep(border_inner_r, border_inner_r + aa_softness_world, d1) *
         (1.0 - smoothstep(border_outer_r, border_outer_r + aa_softness_world, d1));
-    let border_2 =
-        smoothstep(border_inner_r, border_inner_r + aa_softness_world, d2) *
+    let border_2 = smoothstep(border_inner_r, border_inner_r + aa_softness_world, d2) *
         (1.0 - smoothstep(border_outer_r, border_outer_r + aa_softness_world, d2));
 
     let inner_fill_mask = clamp(inner_fill_1 + inner_fill_2, 0.0, 1.0);
@@ -773,14 +759,14 @@ fn draw_disjoint_with(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32
     let inside_rect = inside_x && inside_y;
     // mask selection
     var outer_fill_mask = 0.0;
-    if(inside_rect) {
+    if inside_rect {
         outer_fill_mask = 1.0;
     }
 
     // colors
     let inner_fill_color = SET_COLOR;
     var outer_fill_color = LIGHT_BLUE;
-    if (hovered == 1u) {
+    if hovered == 1u {
         outer_fill_color = HIGHLIGHTED_COLOR;
     }
 
@@ -798,39 +784,86 @@ fn draw_disjoint_with(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32
 fn draw_node_by_type(element_type: u32, v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32) -> vec4<f32> {
     // Documentation is available in Visualization.md
     switch element_type {
-            // Reserved
-            case 0: {return vec4<f32>(0.0);}
-            // RDF edges
-            case 15000: {return draw_property(v_uv, shape_dimensions, RDFS_COLOR, hovered);}
-            // RDFS nodes
-            case 20000: {return draw_rdfs_class(v_uv, hovered);}
-            case 20001: {return draw_literal(v_uv, shape_dimensions, hovered);}
-            case 20002: {return draw_rdfs_resource(v_uv, hovered);}
-            case 20003: {return draw_datatype(v_uv, shape_dimensions, hovered);}
-            // RDFS edges
-            case 25000: {return draw_property(v_uv, shape_dimensions, vec3<f32>(1.0), hovered);}
-            // OWL nodes
-            case 30000: {return draw_anonymous_class(v_uv, hovered);}
-            case 30001: {return draw_class(v_uv, hovered);}
-            case 30002: {return draw_complement(v_uv, hovered);}
-            case 30003: {return draw_deprecated_class(v_uv, hovered);}
-            case 30004: {return draw_external_class(v_uv, hovered);}
-            case 30005: {return draw_equivalent_class(v_uv, hovered);}
-            case 30006: {return draw_union(v_uv, hovered);}
-            case 30007: {return draw_intersection_of(v_uv, hovered);}
-            case 30008: {return draw_thing(v_uv, hovered);}
-            case 30009: {return draw_union(v_uv, hovered);}
-            // OWL edges
-            case 35000: {return draw_property(v_uv, shape_dimensions, DATATYPE_PROPERTY_COLOR, hovered);}
-            case 35001: {return draw_disjoint_with(v_uv, shape_dimensions, hovered);}
-            case 35002: {return draw_property(v_uv, shape_dimensions, DEPRECATED_COLOR, hovered);}
-            case 35003: {return draw_property(v_uv, shape_dimensions, DARK_BLUE, hovered);}
-            case 35004: {return draw_inverse_property(v_uv, shape_dimensions, hovered);}
-            case 35005: {return draw_property(v_uv, shape_dimensions, LIGHT_BLUE, hovered);}
-            case 35006: {return draw_property(v_uv, shape_dimensions, LIGHT_BLUE, hovered);}
-            // Generic
-            case 40000: {return vec4<f32>(0.0);} // TODO: Define Generic node
-            case 50000: {return vec4<f32>(0.0);} // TODO: Define Generic edge
-            default: {return vec4<f32>(0.0);}
-}
+        // Reserved
+        case 0: { return vec4<f32>(0.0); }
+        // RDF nodes
+        case 10000 | 10001 | 10002: { return draw_datatype(v_uv, shape_dimensions, hovered); }
+        // RDF edges
+        case 15000: { return draw_property(v_uv, shape_dimensions, RDFS_COLOR, hovered); }
+        // RDFS nodes
+        case 20000: { return draw_rdfs_class(v_uv, hovered); }
+        case 20001: { return draw_literal(v_uv, shape_dimensions, hovered); }
+        case 20002: { return draw_rdfs_resource(v_uv, hovered); }
+        case 20003: { return draw_datatype(v_uv, shape_dimensions, hovered); }
+        // RDFS edges
+        case 25000: { return draw_property(v_uv, shape_dimensions, vec3<f32>(1.0), hovered); }
+        // OWL nodes
+        case 30000: { return draw_anonymous_class(v_uv, hovered); }
+        case 30001: { return draw_class(v_uv, hovered); }
+        case 30002: { return draw_complement(v_uv, hovered); }
+        case 30003: { return draw_deprecated_class(v_uv, hovered); }
+        case 30004: { return draw_external_class(v_uv, hovered); }
+        case 30005: { return draw_equivalent_class(v_uv, hovered); }
+        case 30006: { return draw_union(v_uv, hovered); }
+        case 30007: { return draw_intersection_of(v_uv, hovered); }
+        case 30008: { return draw_thing(v_uv, hovered); }
+        case 30009: { return draw_union(v_uv, hovered); }
+        case 30010 | 30011: { return draw_datatype(v_uv, shape_dimensions, hovered); }
+        // OWL edges
+        case 35000: { return draw_property(v_uv, shape_dimensions, DATATYPE_PROPERTY_COLOR, hovered); }
+        case 35001: { return draw_disjoint_with(v_uv, shape_dimensions, hovered); }
+        case 35002: { return draw_property(v_uv, shape_dimensions, DEPRECATED_COLOR, hovered); }
+        case 35003: { return draw_property(v_uv, shape_dimensions, DARK_BLUE, hovered); }
+        case 35004: { return draw_inverse_property(v_uv, shape_dimensions, hovered); }
+        case 35005: { return draw_property(v_uv, shape_dimensions, LIGHT_BLUE, hovered); }
+        case 35006: { return draw_property(v_uv, shape_dimensions, LIGHT_BLUE, hovered); }
+        // Generic
+        case 40000: { return vec4<f32>(0.0); } // TODO: Define Generic node
+        case 50000: { return vec4<f32>(0.0); } // TODO: Define Generic edge
+        // XSD nodes
+        case 60001
+        | 60002
+        | 60003
+        | 60004
+        | 60005
+        | 60006
+        | 60007
+        | 60008
+        | 60009
+        | 60010
+        | 60011
+        | 60012
+        | 60013
+        | 60014
+        | 60015
+        | 60016
+        | 60017
+        | 60018
+        | 60019
+        | 60020
+        | 60021
+        | 60022
+        | 60023
+        | 60024
+        | 60025
+        | 60026
+        | 60027
+        | 60028
+        | 60029
+        | 60030
+        | 60031
+        | 60032
+        | 60033
+        | 60034
+        | 60035
+        | 60036
+        | 60037
+        | 60038
+        | 60039
+        | 60040
+        | 60041
+        | 60042
+        | 60043: { return draw_datatype(v_uv, shape_dimensions, hovered); }
+        default: { return vec4<f32>(0.0); }
+    }
 }

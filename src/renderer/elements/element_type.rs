@@ -1,6 +1,6 @@
 use crate::prelude::{OwlEdge, OwlNode};
 
-use super::{generic::GenericType, owl::OwlType, rdf::RdfType, rdfs::RdfsType};
+use super::{generic::GenericType, owl::OwlType, rdf::RdfType, rdfs::RdfsType, xsd::XSDType};
 use rkyv::{Archive, Deserialize, Serialize};
 use std::fmt::Display;
 use std::num::TryFromIntError;
@@ -10,6 +10,7 @@ pub enum ElementType {
     Owl(OwlType),
     Rdf(RdfType),
     Rdfs(RdfsType),
+    Xsd(XSDType),
     Generic(GenericType),
     NoDraw,
 }
@@ -23,10 +24,12 @@ impl ElementType {
             | Self::Rdfs(RdfsType::Edge(_))
             | Self::Generic(GenericType::Edge(_)) => true,
             Self::Owl(OwlType::Node(_))
-            // | Self::Rdf(RdfType::Node(_))
+            | Self::Rdf(RdfType::Node(_))
             | Self::Rdfs(RdfsType::Node(_))
-            | Self::Generic(GenericType::Node(_)) | Self::NoDraw => false,
-            }
+            | Self::Generic(GenericType::Node(_))
+            | Self::Xsd(XSDType::Node(_))
+            | Self::NoDraw => false,
+        }
     }
 
     #[must_use]
@@ -41,6 +44,7 @@ impl ElementType {
             Self::Rdf(rdf) => Some(rdf.sovs_kind()),
             Self::Rdfs(rdfs) => Some(rdfs.sovs_kind()),
             Self::Generic(generic) => generic.sovs_kind(),
+            Self::Xsd(xsd) => Some(xsd.sovs_kind()),
             Self::NoDraw => None,
         }
     }
@@ -50,7 +54,7 @@ impl Display for ElementType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NoDraw => write!(f, "NoDraw"),
-            // Self::Rdf(RdfType::Node(node)) => match node {},
+            Self::Rdf(RdfType::Node(node)) => node.fmt(f),
             Self::Rdf(RdfType::Edge(edge)) => edge.fmt(f),
             Self::Rdfs(RdfsType::Node(node)) => node.fmt(f),
             Self::Rdfs(RdfsType::Edge(edge)) => edge.fmt(f),
@@ -58,6 +62,7 @@ impl Display for ElementType {
             Self::Owl(OwlType::Edge(edge)) => edge.fmt(f),
             Self::Generic(GenericType::Node(node)) => node.fmt(f),
             Self::Generic(GenericType::Edge(edge)) => edge.fmt(f),
+            Self::Xsd(XSDType::Node(node)) => node.fmt(f),
         }
     }
 }
@@ -104,7 +109,7 @@ impl From<ElementType> for u32 {
     fn from(value: ElementType) -> Self {
         match value {
             ElementType::NoDraw => 0,
-            // ElementType::Rdf(RdfType::Node(node)) => match node {},
+            ElementType::Rdf(RdfType::Node(node)) => node.into(),
             ElementType::Rdf(RdfType::Edge(edge)) => edge.into(),
             ElementType::Rdfs(RdfsType::Node(node)) => node.into(),
             ElementType::Rdfs(RdfsType::Edge(edge)) => edge.into(),
@@ -112,6 +117,7 @@ impl From<ElementType> for u32 {
             ElementType::Owl(OwlType::Edge(edge)) => edge.into(),
             ElementType::Generic(GenericType::Node(node)) => node.into(),
             ElementType::Generic(GenericType::Edge(edge)) => edge.into(),
+            ElementType::Xsd(XSDType::Node(node)) => node.into(),
         }
     }
 }
