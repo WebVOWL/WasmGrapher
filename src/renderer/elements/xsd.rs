@@ -116,7 +116,7 @@ impl XSDNode {
             Self::Language => "xsd:language",
             Self::Nmtoken => "xsd:nmtoken",
             Self::Name => "xsd:name",
-            Self::NCName => "xsd:nCName",
+            Self::NCName => "xsd:ncName",
             Self::QName => "xsd:qName",
             Self::String => "xsd:string",
             Self::Token => "xsd:token",
