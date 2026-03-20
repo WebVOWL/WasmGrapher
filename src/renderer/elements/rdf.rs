@@ -44,7 +44,7 @@ impl RdfNode {
         match self {
             Self::HTML => "rdf:html",
             Self::PlainLiteral => "rdf:plainLiteral",
-            Self::XMLLiteral => "rdf:xMLLiteral",
+            Self::XMLLiteral => "rdf:xmlLiteral",
         }
     }
 }
