@@ -379,9 +379,9 @@ impl QuadTree {
     //     Ok(())
     // }
 
-    /// Returns the quadtree node having position `query_pos`.
+    /// Returns the quadtree node within a `threshold` distance to position `query_pos`.
     #[must_use]
-    pub fn query_point(&self, query_pos: Vec2) -> Option<&Node> {
+    pub fn query_point(&self, query_pos: Vec2, threshold: f32) -> Option<&Node> {
         let mut bb = self.boundary.clone();
         let mut root_index = self.root;
 
@@ -399,17 +399,11 @@ impl QuadTree {
 
         // Check the final leaf node
         if let Some(Node::Leaf { pos, .. }) = &self.children.get(&root_index)
-            && pos.distance_squared(query_pos) <= EPSILON
+            && pos.distance_squared(query_pos) <= threshold
         {
             return Some(&self.children[&root_index]);
         }
         None
-    }
-
-    /// Returns true if `contain_pos` is a point in the quadtree.
-    #[must_use]
-    pub fn contains(&self, contain_pos: Vec2) -> bool {
-        self.query_point(contain_pos).is_some()
     }
 
     /// Clears the quadtree, removing all elements.
@@ -646,8 +640,9 @@ mod test {
         let n2_pos = Vec2::new(-2.0, 1.0);
         qt.insert(n2_pos, n2_mass).unwrap();
 
-        assert!(qt.contains(n1_pos));
-        assert!(qt.contains(n2_pos));
+        assert!(qt.query_point(n1_pos, EPSILON).is_some());
+        assert!(qt.query_point(n2_pos, EPSILON).is_some());
+        assert!(qt.query_point(Vec2::new(100.0, -100.0), EPSILON).is_none());
     }
 
     // #[test]
