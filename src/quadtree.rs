@@ -428,15 +428,10 @@ impl QuadTree {
     /// However, please use [`Self::len`] for this, as it is much faster.
     ///
     /// This method's runtime is O(n).
-    #[must_use]
-    pub fn leaves(&self) -> usize {
-        let mut count = 0;
-        for (index, node) in &self.children {
-            if let Node::Leaf { .. } = node {
-                count += 1;
-            }
-        }
-        count
+    pub fn leaves(&self) -> impl Iterator {
+        self.children
+            .iter()
+            .filter(|(_, node)| matches!(node, Node::Leaf { .. }))
     }
 
     /// Returns the amount of root nodes in the tree.
@@ -447,15 +442,10 @@ impl QuadTree {
     /// However, please use [`Self::len`] for this, as it is much faster.
     ///
     /// This method's runtime is O(n).
-    #[must_use]
-    pub fn roots(&self) -> usize {
-        let mut count = 0;
-        for (index, node) in &self.children {
-            if let Node::Root { .. } = node {
-                count += 1;
-            }
-        }
-        count
+    pub fn roots(&self) -> impl Iterator {
+        self.children
+            .iter()
+            .filter(|(_, node)| matches!(node, Node::Root { .. }))
     }
 
     /// Returns the number of nodes in the tree.
