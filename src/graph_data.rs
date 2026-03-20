@@ -23,7 +23,7 @@ pub struct GraphDisplayData {
     /// Cardinalities of edges.
     ///
     /// The tuple consists of 2 elements:
-    ///     - u32: The ID of the edge. Defined by the indices of `elements`.
+    ///     - u32: The index of the edge in `edges`.
     ///     - (String, Option<String>):
     ///         - String: The min cardinality of the edge.
     ///         - Option<String>: The max cardinality of the target edge.
