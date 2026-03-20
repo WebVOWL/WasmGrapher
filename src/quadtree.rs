@@ -557,9 +557,6 @@ impl QuadTree {
             component_form.x += rng.random_range::<f32, Range<f32>>(-1.0_f32..1.0_f32);
             component_form.y += rng.random_range::<f32, Range<f32>>(-1.0_f32..1.0_f32);
             length_sqr = component_form.length_squared();
-            if length_sqr < 1.0 {
-                length_sqr = f32::sqrt(length_sqr);
-            }
         }
 
         let f = repel_force * (mass1 * mass2).abs() / length_sqr;
