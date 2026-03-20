@@ -289,7 +289,7 @@ impl State {
                         node_shapes.push(NodeShape::Circle { r: 0.7 });
                     }
                     OwlNode::Real | OwlNode::Rational => {
-                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 })
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
                     }
                 },
                 ElementType::Owl(OwlType::Edge(edge)) => match edge {
@@ -318,7 +318,7 @@ impl State {
                 },
                 ElementType::Rdf(RdfType::Node(node)) => match node {
                     RdfNode::HTML | RdfNode::PlainLiteral | RdfNode::XMLLiteral => {
-                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 })
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
                     }
                 },
                 ElementType::Rdf(RdfType::Edge(edge)) => match edge {
@@ -357,20 +357,20 @@ impl State {
                     | XSDNode::Time
                     | XSDNode::AnyURI
                     | XSDNode::ID
-                    | XSDNode::IDREF
+                    | XSDNode::Idref
                     | XSDNode::Language
-                    | XSDNode::NMTOKEN
+                    | XSDNode::Nmtoken
                     | XSDNode::Name
                     | XSDNode::NCName
                     | XSDNode::QName
                     | XSDNode::String
                     | XSDNode::Token
                     | XSDNode::NormalizedString
-                    | XSDNode::NOTATION
+                    | XSDNode::Notation
                     | XSDNode::AnySimpleType
                     | XSDNode::Base64Binary
                     | XSDNode::Boolean
-                    | XSDNode::ENTITY
+                    | XSDNode::Entity
                     | XSDNode::UnsignedByte
                     | XSDNode::Byte
                     | XSDNode::HexBinary => {
@@ -2015,7 +2015,7 @@ impl State {
                         node_shapes.push(NodeShape::Circle { r: 0.7 });
                     }
                     OwlNode::Real | OwlNode::Rational => {
-                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 })
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
                     }
                 },
                 ElementType::Owl(OwlType::Edge(edge)) => match edge {
@@ -2044,7 +2044,7 @@ impl State {
                 },
                 ElementType::Rdf(RdfType::Node(node)) => match node {
                     RdfNode::HTML | RdfNode::PlainLiteral | RdfNode::XMLLiteral => {
-                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 })
+                        node_shapes.push(NodeShape::Rectangle { w: 1.0, h: 1.0 });
                     }
                 },
                 ElementType::Rdf(RdfType::Edge(edge)) => match edge {
@@ -2083,20 +2083,20 @@ impl State {
                     | XSDNode::Time
                     | XSDNode::AnyURI
                     | XSDNode::ID
-                    | XSDNode::IDREF
+                    | XSDNode::Idref
                     | XSDNode::Language
-                    | XSDNode::NMTOKEN
+                    | XSDNode::Nmtoken
                     | XSDNode::Name
                     | XSDNode::NCName
                     | XSDNode::QName
                     | XSDNode::String
                     | XSDNode::Token
                     | XSDNode::NormalizedString
-                    | XSDNode::NOTATION
+                    | XSDNode::Notation
                     | XSDNode::AnySimpleType
                     | XSDNode::Base64Binary
                     | XSDNode::Boolean
-                    | XSDNode::ENTITY
+                    | XSDNode::Entity
                     | XSDNode::UnsignedByte
                     | XSDNode::Byte
                     | XSDNode::HexBinary => {
