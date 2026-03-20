@@ -748,8 +748,8 @@ mod test {
                 .unwrap();
         }
 
-        // Run Barnes-Hut for two iterations
-        for _ in 0..2 {
+        // Run Barnes-Hut for 25 iterations
+        for _ in 0..25 {
             for i in 0..NODES {
                 let mass = masses[i as usize];
                 let force =
