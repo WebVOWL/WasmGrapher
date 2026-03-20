@@ -201,13 +201,13 @@ impl QuadTree {
         }
 
         // If new leaf is too close to current leaf we merge
-        if let Node::Leaf { mass, pos, id } = self.children[&root_index]
+        if let Node::Leaf { mass, pos, .. } = self
+            .children
+            .get_mut(&root_index)
+            .ok_or_else(|| format!("Failed to merge leaf index {root_index}: index not found"))?
             && pos.distance_squared(new_pos) < EPSILON
         {
-            let m: f32 = mass + new_mass;
-            self.children
-                .entry(root_index)
-                .and_modify(|node| *node = Node::new_leaf(pos, m, id));
+            *mass += new_mass;
             return Ok(());
         }
 
