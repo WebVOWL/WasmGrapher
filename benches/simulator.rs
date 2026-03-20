@@ -14,11 +14,8 @@ fn force_directed_simulation(c: &mut Criterion) {
     for i in nodes {
         positions.clear();
         sizes.clear();
-        for j in 0..i {
-            positions.push(Vec2::new(
-                f32::fract(f32::sin(j as f32 * 12_345.679)),
-                f32::fract(f32::sin(j as f32 * 98_765.43)),
-            ));
+        for _ in 0..i {
+            positions.push(Vec2::new(0.0, 0.0));
             sizes.push(1.0);
         }
         let mut simulator = Simulator::builder().build(&positions, &edges, &sizes);
