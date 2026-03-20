@@ -253,130 +253,130 @@ impl QuadTree {
         Ok(())
     }
 
-    /// Removes a node and all its descendants from the quadtree.
-    fn delete_index(&mut self, index: u32) -> Result<(), String> {
-        let mut stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
-        stack.push(index);
-        let mut new_stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
-        'outer: loop {
-            for node_index in &stack {
-                let node = self.children.remove(node_index).ok_or_else(|| {
-                    format!("Failed to delete node at index {node_index}: index not found")
-                })?;
-                match node {
-                    Node::Root { indices, .. } => {
-                        for i in indices {
-                            if i != UNINITIALIZED {
-                                new_stack.push(i);
-                            }
-                        }
-                    }
-                    // A leaf has no descendants. Nothing to do.
-                    Node::Leaf { .. } => {}
-                }
-            }
-            if new_stack.is_empty() {
-                break 'outer;
-            }
-            // Clearing and swapping values to keep memory allocations.
-            stack.clear();
-            swap(&mut stack, &mut new_stack);
-        }
-        Ok(())
-    }
+    // /// Removes a node and all its descendants from the quadtree.
+    // fn delete_index(&mut self, index: u32) -> Result<(), String> {
+    //     let mut stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
+    //     stack.push(index);
+    //     let mut new_stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
+    //     'outer: loop {
+    //         for node_index in &stack {
+    //             let node = self.children.remove(node_index).ok_or_else(|| {
+    //                 format!("Failed to delete node at index {node_index}: index not found")
+    //             })?;
+    //             match node {
+    //                 Node::Root { indices, .. } => {
+    //                     for i in indices {
+    //                         if i != UNINITIALIZED {
+    //                             new_stack.push(i);
+    //                         }
+    //                     }
+    //                 }
+    //                 // A leaf has no descendants. Nothing to do.
+    //                 Node::Leaf { .. } => {}
+    //             }
+    //         }
+    //         if new_stack.is_empty() {
+    //             break 'outer;
+    //         }
+    //         // Clearing and swapping values to keep memory allocations.
+    //         stack.clear();
+    //         swap(&mut stack, &mut new_stack);
+    //     }
+    //     Ok(())
+    // }
 
-    /// Unassigns the index of a leaf node in its parent, making it the uninitialized value.
-    ///
-    /// If an update leaves all children of a root node uninitialized, the root node is deleted.
-    /// This proceeds recursively up towards the root of the quadtree.
-    ///
-    /// Note that unassigned leaf nodes are NOT deleted.
-    fn unassign_index(
-        &mut self,
-        section: u8,
-        root_index: u32,
-        parents: &[u32],
-    ) -> Result<(), String> {
-        if let Some(Node::Root { indices, pos, mass }) = &mut self.children.get_mut(&root_index) {
-            indices[section as usize] = UNINITIALIZED;
+    // /// Unassigns the index of a leaf node in its parent, making it the uninitialized value.
+    // ///
+    // /// If an update leaves all children of a root node uninitialized, the root node is deleted.
+    // /// This proceeds recursively up towards the root of the quadtree.
+    // ///
+    // /// Note that unassigned leaf nodes are NOT deleted.
+    // fn unassign_index(
+    //     &mut self,
+    //     section: u8,
+    //     root_index: u32,
+    //     parents: &[u32],
+    // ) -> Result<(), String> {
+    //     if let Some(Node::Root { indices, pos, mass }) = &mut self.children.get_mut(&root_index) {
+    //         indices[section as usize] = UNINITIALIZED;
 
-            if indices.iter().all(|i| *i == UNINITIALIZED) {
-                // All children are uninitialized. We can delete the node.
-                self.delete_index(root_index);
+    //         if indices.iter().all(|i| *i == UNINITIALIZED) {
+    //             // All children are uninitialized. We can delete the node.
+    //             self.delete_index(root_index);
 
-                let last = parents.len().saturating_sub(1);
-                let before_last = last.saturating_sub(1);
+    //             let last = parents.len().saturating_sub(1);
+    //             let before_last = last.saturating_sub(1);
 
-                if let (Some(new_root_index), Some(new_parents)) =
-                    (parents.get(last), parents.get(0..before_last))
-                {
-                    // Unassign the deleted node from its parent.
-                    self.unassign_index(section, *new_root_index, new_parents)?;
-                }
-            }
-            return Ok(());
-        }
+    //             if let (Some(new_root_index), Some(new_parents)) =
+    //                 (parents.get(last), parents.get(0..before_last))
+    //             {
+    //                 // Unassign the deleted node from its parent.
+    //                 self.unassign_index(section, *new_root_index, new_parents)?;
+    //             }
+    //         }
+    //         return Ok(());
+    //     }
 
-        if let Some(Node::Leaf { .. }) = &self.children.get(&root_index) {
-            let last = parents.len().saturating_sub(1);
-            let before_last = last.saturating_sub(1);
+    //     if let Some(Node::Leaf { .. }) = &self.children.get(&root_index) {
+    //         let last = parents.len().saturating_sub(1);
+    //         let before_last = last.saturating_sub(1);
 
-            if let (Some(new_root_index), Some(new_parents)) =
-                (parents.get(last), parents.get(0..before_last))
-            {
-                // Unassign the deleted node from its parent.
-                self.unassign_index(section, *new_root_index, new_parents)?;
-            }
+    //         if let (Some(new_root_index), Some(new_parents)) =
+    //             (parents.get(last), parents.get(0..before_last))
+    //         {
+    //             // Unassign the deleted node from its parent.
+    //             self.unassign_index(section, *new_root_index, new_parents)?;
+    //         }
 
-            return Ok(());
-        }
-        Err(format!(
-            "Cannot unassign index {root_index}: index not found"
-        ))
-    }
+    //         return Ok(());
+    //     }
+    //     Err(format!(
+    //         "Cannot unassign index {root_index}: index not found"
+    //     ))
+    // }
 
-    /// Removes the point `delete_pos` from the quadtree, if it exists.
-    pub fn delete_point(&mut self, delete_pos: Vec2) -> Result<(), String> {
-        let Some(delete_node) = self.query_point(delete_pos) else {
-            return Err(format!(
-                "Failed to delete point '{delete_pos}': point not found"
-            ));
-        };
+    // /// Removes the point `delete_pos` from the quadtree, if it exists.
+    // pub fn delete_point(&mut self, delete_pos: Vec2) -> Result<(), String> {
+    //     let Some(delete_node) = self.query_point(delete_pos) else {
+    //         return Err(format!(
+    //             "Failed to delete point '{delete_pos}': point not found"
+    //         ));
+    //     };
 
-        let mut parent_indices: SmallVec<[u32; 128]> = smallvec![];
+    //     let mut parent_indices: SmallVec<[u32; 128]> = smallvec![];
 
-        let mut bb = self.boundary.clone();
-        let mut section = bb.section(delete_pos);
-        let mut current_index = self.root;
-        let del_mass = delete_node.mass();
+    //     let mut bb = self.boundary.clone();
+    //     let mut section = bb.section(delete_pos);
+    //     let mut current_index = self.root;
+    //     let del_mass = delete_node.mass();
 
-        // Traversing the tree until we find `delete_pos`.
-        while let Node::Root { indices, mass, pos } =
-            &mut self.children.get_mut(&current_index).ok_or_else(|| {
-                format!("Failed to get index {current_index} while deleting point {delete_pos}")
-            })?
-        {
-            // Update Mass and Pos of root to account for the removed node (when we find it).
-            *mass -= del_mass;
-            *pos -= delete_pos * del_mass;
+    //     // Traversing the tree until we find `delete_pos`.
+    //     while let Node::Root { indices, mass, pos } =
+    //         &mut self.children.get_mut(&current_index).ok_or_else(|| {
+    //             format!("Failed to get index {current_index} while deleting point {delete_pos}")
+    //         })?
+    //     {
+    //         // Update Mass and Pos of root to account for the removed node (when we find it).
+    //         *mass -= del_mass;
+    //         *pos -= delete_pos * del_mass;
 
-            parent_indices.push(current_index);
+    //         parent_indices.push(current_index);
 
-            section = bb.section(delete_pos);
-            current_index = indices[section as usize];
-            bb = bb.sub_quadrant(section);
-        }
+    //         section = bb.section(delete_pos);
+    //         current_index = indices[section as usize];
+    //         bb = bb.sub_quadrant(section);
+    //     }
 
-        // The leaf node has a parent.
-        if !parent_indices.is_empty() {
-            // Set the deleted node to uninitialized in the parent node.
-            self.unassign_index(section, current_index, parent_indices.as_slice())?;
-        }
+    //     // The leaf node has a parent.
+    //     if !parent_indices.is_empty() {
+    //         // Set the deleted node to uninitialized in the parent node.
+    //         self.unassign_index(section, current_index, parent_indices.as_slice())?;
+    //     }
 
-        self.delete_index(current_index)?;
+    //     self.delete_index(current_index)?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     /// Returns the quadtree node having position `query_pos`.
     #[must_use]
@@ -662,60 +662,60 @@ mod test {
         assert!(qt.contains(n2_pos));
     }
 
-    #[test]
-    fn test_quadtree_delete() {
-        let mut qt: QuadTree = QuadTree::new(BoundingBox2D::new(Vec2::ZERO, 10.0, 10.0));
-        // Insert first node
-        let n1_mass = 5.0;
-        let n1_pos = Vec2::new(-1.0, -1.0);
-        qt.insert(n1_pos, n1_mass).unwrap();
+    // #[test]
+    // fn test_quadtree_delete() {
+    //     let mut qt: QuadTree = QuadTree::new(BoundingBox2D::new(Vec2::ZERO, 10.0, 10.0));
+    //     // Insert first node
+    //     let n1_mass = 5.0;
+    //     let n1_pos = Vec2::new(-1.0, -1.0);
+    //     qt.insert(n1_pos, n1_mass).unwrap();
 
-        // Insert second node in in the same quadrant but different sub quadrant
-        let n2_mass = 30.0;
-        let n2_pos = Vec2::new(1.0, 1.0);
-        qt.insert(n2_pos, n2_mass).unwrap();
+    //     // Insert second node in in the same quadrant but different sub quadrant
+    //     let n2_mass = 30.0;
+    //     let n2_pos = Vec2::new(1.0, 1.0);
+    //     qt.insert(n2_pos, n2_mass).unwrap();
 
-        qt.delete_point(n2_pos).unwrap();
-        assert!(qt.leaves() == 1);
+    //     qt.delete_point(n2_pos).unwrap();
+    //     assert!(qt.leaves() == 1);
 
-        qt.delete_point(n1_pos).unwrap();
-        assert!(qt.is_empty());
-    }
+    //     qt.delete_point(n1_pos).unwrap();
+    //     assert!(qt.is_empty());
+    // }
 
-    #[ignore = "Delete doesn't remove all nodes as expected. Don't use delete until this test is passing"]
-    #[test]
-    fn test_quadtree_insert_delete() {
-        const NODES: u32 = 100_000;
+    // #[ignore = "Delete doesn't remove all nodes as expected. Don't use delete until this test is passing"]
+    // #[test]
+    // fn test_quadtree_insert_delete() {
+    //     const NODES: u32 = 100_000;
 
-        let w = 1000.0;
-        let bb = BoundingBox2D::new(Vec2::ZERO, w, w);
-        let mut qt: QuadTree = QuadTree::new(bb);
-        let mut rng = StdRng::seed_from_u64(42);
+    //     let w = 1000.0;
+    //     let bb = BoundingBox2D::new(Vec2::ZERO, w, w);
+    //     let mut qt: QuadTree = QuadTree::new(bb);
+    //     let mut rng = StdRng::seed_from_u64(42);
 
-        let mut points = Vec::with_capacity(NODES as usize);
+    //     let mut points = Vec::with_capacity(NODES as usize);
 
-        for _ in 0..NODES {
-            points.push(Vec2::new(
-                rng.random_range((-w / 2.0)..(w / 2.0)),
-                rng.random_range((-w / 2.0)..(w / 2.0)),
-            ));
-        }
+    //     for _ in 0..NODES {
+    //         points.push(Vec2::new(
+    //             rng.random_range((-w / 2.0)..(w / 2.0)),
+    //             rng.random_range((-w / 2.0)..(w / 2.0)),
+    //         ));
+    //     }
 
-        for i in 0..NODES {
-            qt.insert_id(i, points[i as usize], rng.random_range(1.0..2000.0))
-                .unwrap();
-        }
+    //     for i in 0..NODES {
+    //         qt.insert_id(i, points[i as usize], rng.random_range(1.0..2000.0))
+    //             .unwrap();
+    //     }
 
-        for point in points.iter().take(NODES as usize) {
-            // If points are too close to each other they're merged in the tree.
-            // Specifically if `p1.distance_squared(p2) <= EPSILON`.
-            // This means that we may not be able to delete the same amount of points as we inserted.
-            // Therefore, we silence the error here.
-            let _ = qt.delete_point(*point);
-        }
+    //     for point in points.iter().take(NODES as usize) {
+    //         // If points are too close to each other they're merged in the tree.
+    //         // Specifically if `p1.distance_squared(p2) <= EPSILON`.
+    //         // This means that we may not be able to delete the same amount of points as we inserted.
+    //         // Therefore, we silence the error here.
+    //         let _ = qt.delete_point(*point);
+    //     }
 
-        assert!(qt.is_empty());
-    }
+    //     assert!(qt.is_empty());
+    // }
 
     #[test]
     fn test_quadtree_barnes_hut() {
