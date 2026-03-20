@@ -239,9 +239,7 @@ impl QuadTree {
 
             // Sets the old leaf index to the new root (thus the leaf index of the old leaf's parent now points to the new root)
             let new_root = Node::new_root(pos * mass + new_pos * new_mass, mass + new_mass, ind);
-            self.children
-                .entry(root_index)
-                .and_modify(|node| *node = new_root);
+            self.children.insert(root_index, new_root);
 
             if fin {
                 break;
