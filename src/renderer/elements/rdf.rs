@@ -42,9 +42,9 @@ impl RdfNode {
     #[cfg(feature = "test-utils")]
     pub(crate) const fn sovs_kind(self) -> &'static str {
         match self {
-            RdfNode::HTML => "rdf:hTML",
-            RdfNode::PlainLiteral => "rdf:plainLiteral",
-            RdfNode::XMLLiteral => "rdf:xMLLiteral",
+            Self::HTML => "rdf:hTML",
+            Self::PlainLiteral => "rdf:plainLiteral",
+            Self::XMLLiteral => "rdf:xMLLiteral",
         }
     }
 }
