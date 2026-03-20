@@ -181,9 +181,9 @@ mod test_utils {
         fn try_from(value: GraphDisplayData) -> Result<Self, SovsError> {
             let mut builder = SpecificationBuilder::new();
 
-            for (i, (label, element)) in value.labels.iter().zip(value.elements).enumerate() {
+            for (i, (label, element)) in value.labels.iter().zip(&value.elements).enumerate() {
                 if element.is_node() {
-                    builder.node(i.to_string(), node_properties(label.clone(), element));
+                    builder.node(i.to_string(), node_properties(label.clone(), *element));
                     continue;
                 }
 
@@ -198,7 +198,7 @@ mod test_utils {
                     i.to_string(),
                     from.to_string(),
                     to.to_string(),
-                    edge_properties(label.clone(), element),
+                    edge_properties(&value, i),
                 );
             }
 
@@ -218,14 +218,33 @@ mod test_utils {
         properties
     }
 
-    fn edge_properties(label: Option<String>, element_type: ElementType) -> Properties {
+    fn edge_properties(data: &GraphDisplayData, index: usize) -> Properties {
+        let label = &data.labels[index];
+        let element_type = data.elements[index];
         let mut properties = Properties::new();
         if let Some(label) = label {
-            properties.insert("text".to_string(), label);
+            properties.insert("text".to_string(), label.clone());
         }
         if let Some(kind) = element_type.sovs_kind() {
             let kind = kind.to_string();
             properties.insert("kind".to_string(), kind);
+        }
+
+        // HACK: characteristics aren't structured, so we just have to match on strings
+        if let Some(characteristics) = data.characteristics.get(&index) {
+            let characteristics = characteristics.split('\n').map(|c| match c {
+                "asymmetric" => "owl:asymmetricProperty",
+                "functional" => "owl:functionalProperty",
+                "inverse functional" => "owl:inverseFunctionalProperty",
+                "irreflexive" => "owl:irreflexiveProperty",
+                "reflexive" => "owl:reflexiveProperty",
+                "symmetric" => "owl:symmetricProperty",
+                "transitive" => "owl:transitiveProperty",
+                _ => panic!("unknown characteristic {c}"),
+            });
+            for c in characteristics {
+                properties.insert("characteristics".to_string(), c.to_string());
+            }
         }
 
         properties
