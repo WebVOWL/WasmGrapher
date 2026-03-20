@@ -125,7 +125,7 @@ impl XSDNode {
             Self::AnySimpleType => "xsd:anySimpleType",
             Self::Base64Binary => "xsd:base64Binary",
             Self::Boolean => "xsd:boolean",
-            Self::Entity => "xsd:eNTITY",
+            Self::Entity => "xsd:entity",
             Self::UnsignedByte => "xsd:unsignedByte",
             Self::Byte => "xsd:byte",
             Self::HexBinary => "xsd:hexBinary",
