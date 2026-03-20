@@ -87,7 +87,7 @@ pub struct State {
     elements: Vec<ElementType>,
     node_shapes: Vec<NodeShape>,
     cardinalities: Vec<(u32, (String, Option<String>))>,
-    characteristics: HashMap<usize, String>,
+    characteristics: HashMap<usize, HashSet<Characteristic>>,
     simulator: Simulator<'static, 'static>,
     paused: bool,
     hovered_index: i32,
@@ -369,18 +369,20 @@ impl State {
                 _ => {}
             }
 
-            let Some(label_text) = &labels[i] else {
+            let Some(label_text) = labels[i].as_ref() else {
                 continue;
             };
-            let label_text: &str = label_text;
+            let mut measure_text = label_text.clone();
 
             // Use longest string among label and characteristics
-            let mut measure_text = label_text;
-            if let Some(ch_text_ref) = characteristics.get(&i)
-                && let Some(ch_longest_line) = ch_text_ref.split('\n').max_by_key(|s| s.len())
+            if let Some(chs) = characteristics.get(&i)
+                && let Some(ch_longest_line) = chs
+                    .iter()
+                    .map(Characteristic::as_ref)
+                    .max_by_key(|s| s.len())
                 && ch_longest_line.len() > measure_text.len()
             {
-                measure_text = ch_longest_line;
+                ch_longest_line.clone_into(&mut measure_text);
             }
 
             // temporary buffer to measure the text
@@ -390,7 +392,7 @@ impl State {
 
             temp_buffer.set_text(
                 &mut font_system,
-                measure_text,
+                &measure_text,
                 &Attrs::new(),
                 Shaping::Advanced,
             );
@@ -1149,7 +1151,29 @@ impl State {
                 ElementType::Owl(OwlType::Edge(edge)) => match edge {
                     OwlEdge::InverseOf => {
                         if let Some(chs) = self.characteristics.get(&i) {
-                            let (ch1, ch2) = chs.split_once('\n').unwrap_or((chs, ""));
+                            let (ch1, ch2) = if chs.len() == 2 {
+                                let mut iter = chs.iter();
+                                #[expect(
+                                    clippy::expect_used,
+                                    reason = "ideally we would pattern match this, but there's no easy way to do that in the stdlib as far as i can tell"
+                                )]
+                                (
+                                    iter.next()
+                                        .expect("iterator must have first element")
+                                        .to_string(),
+                                    iter.next()
+                                        .expect("iterator must have second element")
+                                        .to_string(),
+                                )
+                            } else {
+                                (
+                                    chs.iter()
+                                        .map(Characteristic::to_string)
+                                        .collect::<Vec<String>>()
+                                        .join("\n"),
+                                    String::new(),
+                                )
+                            };
                             let labels_vec: Vec<&str> = label_or_node_name.split('\n').collect();
                             let label1 = labels_vec.first().map_or("", |v| *v).to_string();
                             owned_spans.push((label1, attrs.clone()));
@@ -1197,7 +1221,16 @@ impl State {
                 ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
             ) && let Some(ch) = self.characteristics.get(&i)
             {
-                owned_spans.push((format!("\n({ch})"), attrs.clone().metrics(element_metrics)));
+                owned_spans.push((
+                    format!(
+                        "\n({})",
+                        ch.iter()
+                            .map(Characteristic::to_string)
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    ),
+                    attrs.clone().metrics(element_metrics),
+                ));
             }
 
             let spans: Vec<(&str, Attrs)> = owned_spans
@@ -2044,8 +2077,11 @@ impl State {
 
                 // Use longest string among label and characteristics
                 let mut measure_text: &str = label_text;
-                if let Some(ch_text_ref) = self.characteristics.get(&i)
-                    && let Some(ch_longest_line) = ch_text_ref.split('\n').max_by_key(|s| s.len())
+                if let Some(chs) = self.characteristics.get(&i)
+                    && let Some(ch_longest_line) = chs
+                        .iter()
+                        .map(Characteristic::as_ref)
+                        .max_by_key(|s| s.len())
                     && ch_longest_line.len() > measure_text.len()
                 {
                     measure_text = ch_longest_line;

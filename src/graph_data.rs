@@ -1,6 +1,8 @@
-pub use crate::renderer::elements::{element_type::ElementType, owl::*, rdf::*, rdfs::*};
+pub use crate::renderer::elements::{
+    characteristic::Characteristic, element_type::ElementType, owl::*, rdf::*, rdfs::*,
+};
 use rkyv::{Archive, Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Struct containing graph data for grapher
 #[repr(C)]
@@ -33,7 +35,7 @@ pub struct GraphDisplayData {
     /// The hashmap consists of:
     ///     - usize: The ID of the node. Defined by the indices of `elements`.
     ///     - String: The name of the node type. E.g. "transitive".
-    pub characteristics: HashMap<usize, String>,
+    pub characteristics: HashMap<usize, HashSet<Characteristic>>,
 }
 
 impl GraphDisplayData {
@@ -122,8 +124,14 @@ impl GraphDisplayData {
             (10, ("5".to_string(), Some("10".to_string()))),
         ];
         let mut characteristics = HashMap::new();
-        characteristics.insert(21, "transitive".to_string());
-        characteristics.insert(23, "functional\ninverse functional".to_string());
+        characteristics.insert(21, HashSet::from_iter([Characteristic::TransitiveProperty]));
+        characteristics.insert(
+            23,
+            HashSet::from_iter([
+                Characteristic::FunctionalProperty,
+                Characteristic::InverseFunctionalProperty,
+            ]),
+        );
 
         Self {
             labels,
@@ -230,20 +238,9 @@ mod test_utils {
             properties.insert("kind".to_string(), kind);
         }
 
-        // HACK: characteristics aren't structured, so we just have to match on strings
         if let Some(characteristics) = data.characteristics.get(&index) {
-            let characteristics = characteristics.split('\n').map(|c| match c {
-                "asymmetric" => "owl:asymmetricProperty",
-                "functional" => "owl:functionalProperty",
-                "inverse functional" => "owl:inverseFunctionalProperty",
-                "irreflexive" => "owl:irreflexiveProperty",
-                "reflexive" => "owl:reflexiveProperty",
-                "symmetric" => "owl:symmetricProperty",
-                "transitive" => "owl:transitiveProperty",
-                _ => panic!("unknown characteristic {c}"),
-            });
             for c in characteristics {
-                properties.insert("characteristics".to_string(), c.to_string());
+                properties.insert("characteristics".to_string(), c.as_sovs().to_owned());
             }
         }
 
