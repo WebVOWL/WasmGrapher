@@ -310,10 +310,6 @@ impl State {
                 }
                 ElementType::Generic(generic_type) => todo!(),
             }
-            // positions.push([
-            //     f32::fract(f32::sin(i as f32 * 12_345.679)),
-            //     f32::fract(f32::sin(i as f32 * 98_765.43)),
-            // ]);
             positions.push([1.0, 1.0]);
         }
         if positions.is_empty() {
