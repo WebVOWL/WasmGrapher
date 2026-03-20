@@ -499,7 +499,7 @@ impl QuadTree {
 
         let mut s: f32 = self.boundary.width.max(self.boundary.height);
 
-        let mut stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
+        let mut stack: SmallVec<[u32; 32]> = SmallVec::new();
         stack.push(self.root);
         let mut new_stack: SmallVec<[u32; 32]> = SmallVec::with_capacity(32);
         'outer: loop {
