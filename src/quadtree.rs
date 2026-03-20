@@ -579,7 +579,7 @@ impl QuadTree {
 
 #[cfg(test)]
 mod test {
-    #![expect(clippy::unwrap_used, reason = "Testing is allowed to panic")]
+    #![allow(clippy::unwrap_used, reason = "Testing is allowed to panic")]
 
     use super::*;
 
