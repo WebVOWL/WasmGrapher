@@ -187,7 +187,9 @@ impl std::fmt::Display for GraphDisplayData {
 
 #[cfg(feature = "test-utils")]
 mod test_utils {
-    use super::{ElementType, GraphDisplayData};
+
+    use super::{ElementType, GraphDisplayData, OwlEdge, OwlType};
+    use log::warn;
     use sovs_parser::{Properties, SovsError, Specification, SpecificationBuilder};
 
     impl TryFrom<GraphDisplayData> for Specification {
@@ -208,6 +210,50 @@ mod test_utils {
                     .iter()
                     .find(|[_, edge, _]| *edge == i)
                     .expect("edge does not exist in edge array");
+
+                if *element == ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)) {
+                    let Some((inverse_label, main_label)) =
+                        label.as_ref().and_then(|l| l.split_once('\n'))
+                    else {
+                        warn!("invalid InverseOf edge: Either no newline or no label: {label:?}");
+                        continue;
+                    };
+                    let mut main_props = Properties::new();
+                    main_props.insert("text".to_owned(), main_label.to_owned());
+                    main_props.insert("kind".to_owned(), "owl:objectProperty".to_owned());
+
+                    if let Some(characteristics) = value.characteristics.get(&i) {
+                        for c in characteristics {
+                            main_props
+                                .insert("characteristics".to_string(), c.as_sovs().to_owned());
+                        }
+                    }
+
+                    builder.edge(i.to_string(), from.to_string(), to.to_string(), main_props);
+
+                    let mut inverse_props = Properties::new();
+
+                    inverse_props.insert("text".to_owned(), inverse_label.to_owned());
+                    inverse_props.insert("kind".to_owned(), "owl:inverseProperty".to_owned());
+
+                    if let Some(characteristics) = value.characteristics.get(&i) {
+                        for c in characteristics {
+                            inverse_props
+                                .insert("characteristics".to_string(), c.as_sovs().to_owned());
+                        }
+                    }
+
+                    inverse_props.insert("inverseOf".to_owned(), i.to_string());
+
+                    builder.edge(
+                        format!("{i}_inv"),
+                        to.to_string(),
+                        from.to_string(),
+                        inverse_props,
+                    );
+
+                    continue;
+                }
 
                 builder.edge(
                     i.to_string(),
