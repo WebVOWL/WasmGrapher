@@ -378,10 +378,7 @@ impl State {
                     }
                 },
             }
-            positions.push([
-                f32::fract(f32::sin(i as f32 * 12_345.679)),
-                f32::fract(f32::sin(i as f32 * 98_765.43)),
-            ]);
+            positions.push([1.0, 1.0]);
         }
         if positions.is_empty() {
             positions.push([0.0, 0.0]);
@@ -2149,10 +2146,7 @@ impl State {
             // Reset positions
             self.positions = vec![];
             for i in 0..self.elements.len() {
-                self.positions.push([
-                    f32::fract(f32::sin(i as f32) * 12_345.679),
-                    f32::fract(f32::sin(i as f32) * 98_765.43),
-                ]);
+                self.positions.push([1.0, 1.0]);
             }
         }
 

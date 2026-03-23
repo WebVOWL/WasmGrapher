@@ -20,11 +20,13 @@ pub mod prelude {
     use std::sync::LazyLock;
 
     pub use crate::graph_data::GraphDisplayData;
+    pub use crate::quadtree::{BoundingBox2D, Node, QuadTree};
     pub use crate::renderer::elements::{
         characteristic::Characteristic, element_type::ElementType, generic::*, owl::*, rdf::*,
         rdfs::*, xsd::*,
     };
     pub use crate::renderer::events::RenderEvent;
+    pub use crate::simulator::Simulator;
     pub use crate::simulator::ressources::events::SimulatorEvent;
     pub use crate::simulator::ressources::simulator_vars::{
         Damping, DeltaTime, FreezeThreshold, GravityForce, QuadTreeTheta, RepelForce,

@@ -30,6 +30,7 @@ use crate::{
     },
 };
 use glam::Vec2;
+use log::info;
 use rayon::prelude::*;
 use specs::{
     Builder, Dispatcher, DispatcherBuilder, Entities, Join, LazyUpdate, ParJoin, Read, ReadStorage,
@@ -42,11 +43,12 @@ struct QuadTreeConstructor;
 impl<'a> System<'a> for QuadTreeConstructor {
     type SystemData = (
         Write<'a, QuadTree>,
+        Entities<'a>,
         ReadStorage<'a, Position>,
         ReadStorage<'a, Mass>,
     );
 
-    fn run(&mut self, (mut quadtree, positions, masses): Self::SystemData) {
+    fn run(&mut self, (mut quadtree, entities, positions, masses): Self::SystemData) {
         let mut min = Vec2::INFINITY;
         let mut max = Vec2::NEG_INFINITY;
         let mut count = 0;
@@ -59,13 +61,12 @@ impl<'a> System<'a> for QuadTreeConstructor {
         }
 
         let dir = max - min;
-        let boundary = BoundingBox2D::new((dir / 2.0) + min, dir[0], dir[1]);
-        let mut new_tree = QuadTree::with_capacity(boundary, count);
+        quadtree.clear();
+        quadtree.boundary = BoundingBox2D::new((dir / 2.0) + min, dir[0], dir[1]);
 
-        for (position, mass) in (&positions, &masses).join() {
-            new_tree.insert(position.0, mass.0);
+        for (entity, position, mass) in (&entities, &positions, &masses).join() {
+            quadtree.insert_id(entity.id(), position.0, mass.0);
         }
-        *quadtree = new_tree;
     }
 }
 
@@ -86,6 +87,7 @@ pub struct Simulator<'a, 'b> {
 }
 
 impl Simulator<'_, '_> {
+    #[must_use]
     pub fn builder() -> SimulatorBuilder {
         SimulatorBuilder::default()
     }
