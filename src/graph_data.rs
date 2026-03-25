@@ -36,6 +36,8 @@ pub struct GraphDisplayData {
     ///     - usize: The ID of the node. Defined by the indices of `elements`.
     ///     - String: The name of the node type. E.g. "transitive".
     pub characteristics: HashMap<usize, HashSet<Characteristic>>,
+    /// Track number of individuals connected to a specific element
+    pub individual_counts: HashMap<usize, u32>,
 }
 
 impl GraphDisplayData {
@@ -133,12 +135,16 @@ impl GraphDisplayData {
             ]),
         );
 
+        let mut individual_counts = HashMap::new();
+        individual_counts.insert(0, 2);
+
         Self {
             labels,
             elements,
             edges,
             cardinalities,
             characteristics,
+            individual_counts,
         }
     }
 }
@@ -174,6 +180,7 @@ impl std::fmt::Display for GraphDisplayData {
         )?;
         writeln!(f, "\tcardinalities: {:?}", self.cardinalities)?;
         writeln!(f, "\tcharacteristics: {:?}", self.characteristics)?;
+        writeln!(f, "\tindividual_counts: {:?}", self.individual_counts)?;
         writeln!(f, "}}")
     }
 }
