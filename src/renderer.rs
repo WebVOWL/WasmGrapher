@@ -89,6 +89,7 @@ pub struct State {
     node_shapes: Vec<NodeShape>,
     cardinalities: Vec<(u32, (String, Option<String>))>,
     characteristics: HashMap<usize, HashSet<Characteristic>>,
+    individual_counts: HashMap<usize, u32>,
     simulator: Simulator<'static, 'static>,
     paused: bool,
     hovered_index: i32,
@@ -115,6 +116,7 @@ pub struct State {
     // one glyphon buffer per node containing its text (created when glyphon is initialized)
     text_buffers: Option<Vec<GlyphBuffer>>,
     cardinality_text_buffers: Option<Vec<(usize, GlyphBuffer)>>,
+    individual_count_text_buffers: Option<Vec<(usize, GlyphBuffer)>>,
     pub window: Arc<Window>,
 
     // Radial menu
@@ -396,6 +398,7 @@ impl State {
         let cardinalities = graph.cardinalities;
 
         let mut characteristics = graph.characteristics;
+        let individual_counts = graph.individual_counts;
 
         // FontSystem instance for text measurement
         let mut font_system =
@@ -932,6 +935,7 @@ impl State {
         let text_renderer = None;
         let text_buffers = None;
         let cardinality_text_buffers = None;
+        let individual_count_text_buffers = None;
 
         let depth_format = wgpu::TextureFormat::Depth24Plus;
 
@@ -979,6 +983,7 @@ impl State {
             node_shapes,
             cardinalities,
             characteristics,
+            individual_counts,
             simulator,
             paused: false,
             hovered_index,
@@ -998,6 +1003,7 @@ impl State {
             text_renderer,
             text_buffers,
             cardinality_text_buffers,
+            individual_count_text_buffers,
             window,
             radial_menu_pipeline,
             radial_menu_bind_group,
@@ -1330,6 +1336,41 @@ impl State {
             cardinality_buffers.push((edge_idx, buf));
         }
 
+        let mut individual_count_buffers: Vec<(usize, GlyphBuffer)> = Vec::new();
+
+        for (&node_idx, &count) in &self.individual_counts {
+            if count == 0 || node_idx >= self.elements.len() {
+                continue;
+            }
+
+            if !self.elements[node_idx].is_node()
+                || matches!(self.elements[node_idx], ElementType::NoDraw)
+            {
+                continue;
+            }
+
+            let font_px = 11.0 * scale;
+            let line_px = 11.0 * scale;
+            let mut buf = GlyphBuffer::new(&mut font_system, Metrics::new(font_px, line_px));
+            buf.set_size(&mut font_system, Some(24.0 * scale), Some(24.0 * scale));
+
+            let attrs = &Attrs::new().family(Family::SansSerif).metadata(node_idx);
+
+            let count_text = count.to_string();
+            let spans = vec![(count_text.as_str(), attrs.clone())];
+
+            buf.set_rich_text(
+                &mut font_system,
+                spans,
+                attrs,
+                Shaping::Advanced,
+                Some(glyphon::cosmic_text::Align::Center),
+            );
+            buf.shape_until_scroll(&mut font_system, false);
+
+            individual_count_buffers.push((node_idx, buf));
+        }
+
         // Initialize Radial Menu Buffers
         let scale = self.window.scale_factor() as f32;
         let menu_attrs = Attrs::new()
@@ -1357,6 +1398,7 @@ impl State {
         self.text_renderer = Some(text_renderer);
         self.text_buffers = Some(text_buffers);
         self.cardinality_text_buffers = Some(cardinality_buffers);
+        self.individual_count_text_buffers = Some(individual_count_buffers);
     }
 
     fn recreate_depth_texture(&mut self) {
@@ -1641,6 +1683,61 @@ impl State {
             }
         }
 
+        // Individuals
+        let mut individual_count_layouts: Vec<LabelLayout> = Vec::new();
+
+        if let Some(count_buffers) = self.individual_count_text_buffers.as_ref() {
+            for (list_idx, (node_idx, buf)) in count_buffers.iter().enumerate() {
+                if *node_idx >= self.positions.len()
+                    || matches!(self.elements[*node_idx], ElementType::NoDraw)
+                {
+                    continue;
+                }
+
+                let node_world =
+                    Vec2::new(self.positions[*node_idx][0], self.positions[*node_idx][1]);
+                let node_screen_phys = self.world_to_screen(node_world) * scale;
+
+                let offset_phys = match self.node_shapes[*node_idx] {
+                    NodeShape::Circle { r } => Vec2::new(r / 2.0, 24.0 * r) * self.zoom * scale,
+                    NodeShape::Rectangle { w, h } => {
+                        Vec2::new(w / 2.0, 14.0 * h) * self.zoom * scale
+                    }
+                };
+
+                let badge_center = node_screen_phys + offset_phys;
+
+                let (label_w_opt, label_h_opt) = buf.size();
+                let label_w = label_w_opt.unwrap_or(24.0);
+                let label_h = label_h_opt.unwrap_or(24.0);
+
+                let scaled_label_w = label_w * self.zoom;
+                let scaled_label_h = label_h * self.zoom;
+
+                let left = badge_center.x - scaled_label_w * 0.5;
+                let top = badge_center.y - scaled_label_h * 0.5;
+                let right = left + scaled_label_w;
+                let bottom = top + scaled_label_h;
+
+                if right < 0.0 || left > vp_w_px || bottom < 0.0 || top > vp_h_px {
+                    continue;
+                }
+
+                individual_count_layouts.push(LabelLayout {
+                    buffer_index: list_idx,
+                    left,
+                    top,
+                    scale_factor: self.zoom,
+                    bounds: TextBounds {
+                        left: left as i32,
+                        top: top as i32,
+                        right: right as i32,
+                        bottom: bottom as i32,
+                    },
+                });
+            }
+        }
+
         // CONSTRUCT TEXT AREAS
 
         let mut areas: Vec<TextArea> = Vec::new();
@@ -1733,6 +1830,20 @@ impl State {
                     scale: layout.scale_factor,
                     bounds: layout.bounds,
                     default_color: Color::rgb(0, 0, 0),
+                    custom_glyphs: &[],
+                });
+            }
+        }
+
+        if let Some(count_buffers) = self.individual_count_text_buffers.as_ref() {
+            for layout in individual_count_layouts {
+                areas.push(TextArea {
+                    buffer: &count_buffers[layout.buffer_index].1,
+                    left: layout.left,
+                    top: layout.top,
+                    scale: layout.scale_factor,
+                    bounds: layout.bounds,
+                    default_color: Color::rgb(150, 150, 150),
                     custom_glyphs: &[],
                 });
             }
@@ -2024,6 +2135,7 @@ impl State {
         };
         self.cardinalities = graph.cardinalities;
         self.characteristics = graph.characteristics;
+        self.individual_counts = graph.individual_counts;
 
         // Recalculate Node Shapes
         let mut node_shapes = vec![];
@@ -2412,6 +2524,7 @@ impl State {
         // Regenerate text buffers
         self.text_buffers = None;
         self.cardinality_text_buffers = None;
+        self.individual_count_text_buffers = None;
         self.font_system = None;
         self.init_glyphon();
 
