@@ -20,7 +20,11 @@ use crate::{
         events::RenderEvent,
         node_shape::NodeShape,
     },
-    simulator::{Simulator, components::nodes::Position, ressources::events::SimulatorEvent},
+    simulator::{
+        Simulator,
+        components::nodes::{Position, Shown},
+        ressources::events::SimulatorEvent,
+    },
 };
 use glam::Vec2;
 use glyphon::{
@@ -799,7 +803,7 @@ impl State {
             }
         }
 
-        let simulator = Simulator::builder().build(&sim_nodes, &sim_edges, &sim_sizes);
+        let simulator = Simulator::builder().build(&elements, &sim_nodes, &sim_edges, &sim_sizes);
 
         // Radial menu setup
 
@@ -1993,9 +1997,16 @@ impl State {
             bytemuck::cast_slice(&[self.view_uniforms]),
         );
 
+        let mut hidden_positions = HashSet::new();
         let positions = self.simulator.world.read_storage::<Position>();
+        let shown = self.simulator.world.read_storage::<Shown>();
         let entities = self.simulator.world.entities();
-        for (i, (_, position)) in (&entities, &positions).join().enumerate() {
+
+        // Update position of all entities
+        for (i, (entity, position)) in (&entities, &positions).join().enumerate() {
+            if !shown.contains(entity) {
+                hidden_positions.insert(i);
+            }
             self.positions[i] = [position.0.x, position.0.y];
         }
 
@@ -2020,6 +2031,7 @@ impl State {
 
         let node_instances = vertex_buffer::build_node_instances(
             &self.positions,
+            Some(&hidden_positions),
             &self.elements,
             &self.node_shapes,
             self.hovered_index,
@@ -2028,6 +2040,7 @@ impl State {
         let (edge_vertices, arrow_vertices) = vertex_buffer::build_line_and_arrow_vertices(
             &self.edges,
             &self.positions,
+            Some(&hidden_positions),
             &self.node_shapes,
             &self.elements,
             self.zoom,
@@ -2466,7 +2479,8 @@ impl State {
             }
         }
 
-        self.simulator = Simulator::builder().build(&sim_nodes, &sim_edges, &sim_sizes);
+        self.simulator =
+            Simulator::builder().build(&self.elements, &sim_nodes, &sim_edges, &sim_sizes);
 
         // Regenerate text buffers
         self.text_buffers = None;

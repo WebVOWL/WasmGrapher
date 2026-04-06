@@ -4,7 +4,7 @@ use crate::{
         components::{
             edges::Connects,
             forces::NodeForces,
-            nodes::{Degree, Mass, NodeState, Position, Velocity},
+            nodes::{Degree, Dragged, Fixed, Mass, Position, Shown, Velocity},
         },
         ressources::simulator_vars::{
             DeltaTime, GravityForce, QuadTreeTheta, RepelForce, SpringNeutralLength,
@@ -23,7 +23,9 @@ impl<'a> System<'a> for ComputeNodeForce {
         Entities<'a>,
         ReadStorage<'a, Position>,
         ReadStorage<'a, Mass>,
-        ReadStorage<'a, NodeState>,
+        ReadStorage<'a, Fixed>,
+        ReadStorage<'a, Dragged>,
+        ReadStorage<'a, Shown>,
         WriteStorage<'a, NodeForces>,
         ReadExpect<'a, QuadTree>,
         Read<'a, QuadTreeTheta>,
@@ -32,21 +34,30 @@ impl<'a> System<'a> for ComputeNodeForce {
 
     fn run(
         &mut self,
-        (entities, positions, masses, node_states, mut node_forces, quadtree, theta, repel_force): Self::SystemData,
+        (
+            entities,
+            positions,
+            masses,
+            fixed,
+            dragged,
+            shown,
+            mut node_forces,
+            quadtree,
+            theta,
+            repel_force,
+        ): Self::SystemData,
     ) {
         (
             &*entities,
             &positions,
             &masses,
             &mut node_forces,
-            &node_states,
+            &shown,
+            !&fixed,
+            !&dragged,
         )
             .par_join()
-            .for_each(|(entity, pos, mass, node_forces, state)| {
-                if state.is_static() {
-                    node_forces.0 = Vec2::ZERO;
-                    return;
-                }
+            .for_each(|(entity, pos, mass, node_forces, _, (), ())| {
                 node_forces.0 = quadtree.approximate_forces_on_body(
                     entity.id(),
                     pos.0,
@@ -67,21 +78,27 @@ impl<'a> System<'a> for ComputeGravityForce {
         Entities<'a>,
         ReadStorage<'a, Position>,
         ReadStorage<'a, Mass>,
-        ReadStorage<'a, NodeState>,
+        ReadStorage<'a, Fixed>,
+        ReadStorage<'a, Dragged>,
+        ReadStorage<'a, Shown>,
         WriteStorage<'a, NodeForces>,
         Read<'a, GravityForce>,
     );
     fn run(
         &mut self,
-        (entities, positions, masses, node_states, mut forces, gravity_force): Self::SystemData,
+        (entities, positions, masses, fixed, dragged, shown, mut forces, gravity_force): Self::SystemData,
     ) {
-        (&entities, &positions, &masses, &mut forces, &node_states)
+        (
+            &entities,
+            &positions,
+            &masses,
+            &mut forces,
+            &shown,
+            !&fixed,
+            !&dragged,
+        )
             .par_join()
-            .for_each(|(entity, pos, mass, force, state)| {
-                if state.is_static() {
-                    return;
-                }
-
+            .for_each(|(entity, pos, mass, force, _, (), ())| {
                 force.0 += -pos.0 * mass.0 * gravity_force.0;
             });
     }
@@ -92,24 +109,30 @@ pub struct ApplyNodeForce;
 impl<'a> System<'a> for ApplyNodeForce {
     type SystemData = (
         Entities<'a>,
-        ReadStorage<'a, NodeState>,
         ReadStorage<'a, NodeForces>,
         WriteStorage<'a, Velocity>,
         ReadStorage<'a, Mass>,
+        ReadStorage<'a, Fixed>,
+        ReadStorage<'a, Dragged>,
+        ReadStorage<'a, Shown>,
         Read<'a, DeltaTime>,
     );
 
     fn run(
         &mut self,
-        (entities, node_states, forces, mut velocities, masses, delta_time): Self::SystemData,
+        (entities, forces, mut velocities, masses, fixed, dragged,shown, delta_time): Self::SystemData,
     ) {
-        (&entities, &forces, &mut velocities, &masses, &node_states)
+        (
+            &entities,
+            &forces,
+            &mut velocities,
+            &masses,
+            &shown,
+            !&fixed,
+            !&dragged,
+        )
             .par_join()
-            .for_each(|(entity, force, velocity, mass, state)| {
-                if state.is_static() {
-                    return;
-                }
-
+            .for_each(|(entity, force, velocity, mass, _, (), ())| {
                 velocity.0 += force.0 / mass.0 * delta_time.0;
             });
     }
@@ -123,6 +146,7 @@ impl<'a> System<'a> for ComputeEdgeForces {
         ReadStorage<'a, Connects>,
         WriteStorage<'a, NodeForces>,
         ReadStorage<'a, Position>,
+        ReadStorage<'a, Shown>,
         Read<'a, SpringStiffness>,
         Read<'a, SpringNeutralLength>,
         ReadStorage<'a, Degree>,
@@ -135,6 +159,7 @@ impl<'a> System<'a> for ComputeEdgeForces {
             connections,
             mut forces,
             positions,
+            shown,
             spring_stiffness,
             spring_neutral_length,
             degrees,
@@ -142,40 +167,41 @@ impl<'a> System<'a> for ComputeEdgeForces {
     ) {
         let positions_storage = &positions;
 
-        let force_updates: Vec<(specs::Entity, Vec2)> = (&entities, &positions, &connections)
-            .par_join()
-            .fold(Vec::new, |mut acc, (entity, pos, connects)| {
-                let rb1 = entity;
-                for rb2 in &connects.targets {
-                    // Look up the neighbor's position
-                    if let Some(pos2_comp) = positions_storage.get(*rb2) {
-                        let pos2 = pos2_comp.0;
-                        let direction_vec = pos2 - pos.0;
+        let force_updates: Vec<(specs::Entity, Vec2)> =
+            (&entities, &positions, &connections, &shown)
+                .par_join()
+                .fold(Vec::new, |mut acc, (entity, pos, connects, _)| {
+                    let rb1 = entity;
+                    for rb2 in &connects.targets {
+                        // Look up the neighbor's position
+                        if let Some(pos2_comp) = positions_storage.get(*rb2) {
+                            let pos2 = pos2_comp.0;
+                            let direction_vec = pos2 - pos.0;
 
-                        let force_magnitude =
-                            spring_stiffness.0 * (direction_vec.length() - spring_neutral_length.0);
+                            let force_magnitude = spring_stiffness.0
+                                * (direction_vec.length() - spring_neutral_length.0);
 
-                        let du = degrees.get(rb1).map_or(1.0, |d| d.0);
-                        let dv = degrees.get(*rb2).map_or(1.0, |d| d.0);
-                        let w = if (du + dv > 200.0) {
-                            1.0 / (du * dv).sqrt().max(1.0)
-                        } else {
-                            1.0
-                        };
+                            let du = degrees.get(rb1).map_or(1.0, |d| d.0);
+                            let dv = degrees.get(*rb2).map_or(1.0, |d| d.0);
+                            let w = if (du + dv > 200.0) {
+                                1.0 / (du * dv).sqrt().max(1.0)
+                            } else {
+                                1.0
+                            };
 
-                        let spring_force =
-                            (direction_vec.normalize_or(Vec2::ZERO) * -force_magnitude) * w;
+                            let spring_force =
+                                (direction_vec.normalize_or(Vec2::ZERO) * -force_magnitude) * w;
 
-                        acc.push((rb1, -spring_force));
-                        acc.push((*rb2, spring_force));
+                            acc.push((rb1, -spring_force));
+                            acc.push((*rb2, spring_force));
+                        }
                     }
-                }
-                acc
-            })
-            .reduce(Vec::new, |mut a, b| {
-                a.extend(b);
-                a
-            });
+                    acc
+                })
+                .reduce(Vec::new, |mut a, b| {
+                    a.extend(b);
+                    a
+                });
 
         for (entity, force_vec) in force_updates {
             if let Some(force_comp) = forces.get_mut(entity) {
