@@ -31,12 +31,7 @@ pub fn distance(mut data: DistanceSystemData) {
             // This node contains the cursor's position.
             // It is the node being dragged.
             data.intersection.0 = i64::from(entity.id());
-
-            // info!(
-            //     "Point {0} intersect [{1}]",
-            //     data.cursor_position.0,
-            //     entity.id()
-            // );
+            break;
         }
     }
 }
