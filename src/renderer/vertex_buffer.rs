@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use wgpu::util::DeviceExt;
 
 use crate::renderer::{
@@ -107,6 +109,7 @@ impl NodeInstance {
 
 pub fn build_node_instances(
     positions: &[[f32; 2]],
+    hidden_positions: Option<&HashSet<usize>>,
     elements: &[ElementType],
     node_shapes: &[NodeShape],
     hovered_index: i32,
@@ -115,6 +118,12 @@ pub fn build_node_instances(
     let n = positions.len() as f32;
 
     for (i, pos) in positions.iter().enumerate() {
+        if let Some(hidden) = hidden_positions
+            && hidden.contains(&i)
+        {
+            continue;
+        }
+
         let (shape_type, shape_dim) = match node_shapes[i] {
             NodeShape::Circle { r } => (0, [r, 0.0]),
             NodeShape::Rectangle { w, h } => (1, [w, h]),
@@ -149,7 +158,8 @@ pub fn create_node_instance_buffer(
     node_shapes: &[NodeShape],
     hovered_index: i32,
 ) -> wgpu::Buffer {
-    let node_instances = build_node_instances(positions, elements, node_shapes, hovered_index);
+    let node_instances =
+        build_node_instances(positions, None, elements, node_shapes, hovered_index);
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("instance_node_buffer"),
         contents: bytemuck::cast_slice(&node_instances),
@@ -230,6 +240,7 @@ fn normalize(v: [f32; 2]) -> [f32; 2] {
 pub fn build_line_and_arrow_vertices(
     edges: &[[usize; 3]],
     node_positions: &[[f32; 2]],
+    hidden_node_positions: Option<&HashSet<usize>>,
     node_shapes: &[NodeShape],
     elements: &[ElementType],
     zoom: f32,
@@ -247,6 +258,14 @@ pub fn build_line_and_arrow_vertices(
     let radius_pix = 50.0;
 
     for &[start_idx, center_idx, end_idx] in edges {
+        if let Some(hidden) = hidden_node_positions
+            && (hidden.contains(&start_idx)
+                || hidden.contains(&center_idx)
+                || hidden.contains(&end_idx))
+        {
+            continue;
+        }
+
         let mut start = node_positions[start_idx];
         let center = node_positions[center_idx];
         let mut end = node_positions[end_idx];
@@ -577,6 +596,7 @@ pub fn create_edge_vertex_buffer(
     let (line_vertices, arrow_vertices) = build_line_and_arrow_vertices(
         edges,
         node_positions,
+        None,
         node_shapes,
         elements,
         zoom,
