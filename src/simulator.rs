@@ -361,9 +361,18 @@ impl SimulatorBuilder {
             } else {
                 let new_connects = Connects {
                     targets: vec![node_entities[edge[1] as usize]],
+                    sources: Vec::new(),
                 };
                 edge_components.insert(edge[0], new_connects);
             }
+            edge_components
+                .entry(edge[1])
+                .or_insert(Connects {
+                    targets: Vec::new(),
+                    sources: Vec::new(),
+                })
+                .sources
+                .push(node_entities[edge[0] as usize]);
         }
 
         // Add edge components to node entities

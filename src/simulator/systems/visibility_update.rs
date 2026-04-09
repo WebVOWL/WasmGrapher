@@ -41,10 +41,22 @@ pub fn update_visibility(
             if should_hide.contains(&node_type.0) {
                 data.updater.remove::<Shown>(entity);
 
-                for edge in &connect.targets {
-                    data.updater.remove::<Shown>(*edge);
+                if node_type.0.is_node() {
+                    for edge in connect.targets.iter().chain(connect.sources.iter()) {
+                        data.updater.remove::<Shown>(*edge);
+                    }
                 }
-            } else {
+            } else if node_type.0.is_node()
+                || !connect
+                    .targets
+                    .iter()
+                    .chain(connect.sources.iter())
+                    .any(|connnection| {
+                        data.node_types
+                            .get(*connnection)
+                            .is_some_and(|connected_type| should_hide.contains(&connected_type.0))
+                    })
+            {
                 data.updater.insert(entity, Shown);
             }
         });

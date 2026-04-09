@@ -97,6 +97,7 @@ pub struct State {
     simulator: Simulator<'static, 'static>,
     paused: bool,
     hovered_index: i32,
+    hidden_indices: HashSet<usize>,
 
     // User input
     cursor_position: Option<Vec2>,
@@ -963,6 +964,7 @@ impl State {
             simulator,
             paused: false,
             hovered_index,
+            hidden_indices: HashSet::new(),
             last_fps_time: Instant::now(),
             fps_counter: 0,
             cursor_position: None,
@@ -1489,7 +1491,7 @@ impl State {
         if let Some(text_buffers) = self.text_buffers.as_ref() {
             for (i, buf) in text_buffers.iter().enumerate() {
                 // Skip hidden nodes
-                if i >= self.elements.len() {
+                if i >= self.elements.len() || self.hidden_indices.contains(&i) {
                     continue;
                 }
 
@@ -1566,6 +1568,10 @@ impl State {
                 let edge = self.edges[*edge_idx];
                 let center_idx = edge[1];
                 let end_idx = edge[2];
+
+                if edge.iter().any(|i| self.hidden_indices.contains(i)) {
+                    continue;
+                }
 
                 let center_log_world =
                     Vec2::new(self.positions[center_idx][0], self.positions[center_idx][1]);
@@ -1669,6 +1675,7 @@ impl State {
             for (list_idx, (node_idx, buf)) in count_buffers.iter().enumerate() {
                 if *node_idx >= self.positions.len()
                     || matches!(self.elements[*node_idx], ElementType::NoDraw)
+                    || self.hidden_indices.contains(node_idx)
                 {
                     continue;
                 }
@@ -1997,7 +2004,7 @@ impl State {
             bytemuck::cast_slice(&[self.view_uniforms]),
         );
 
-        let mut hidden_positions = HashSet::new();
+        self.hidden_indices.clear();
         let positions = self.simulator.world.read_storage::<Position>();
         let shown = self.simulator.world.read_storage::<Shown>();
         let entities = self.simulator.world.entities();
@@ -2005,7 +2012,7 @@ impl State {
         // Update position of all entities
         for (i, (entity, position)) in (&entities, &positions).join().enumerate() {
             if !shown.contains(entity) {
-                hidden_positions.insert(i);
+                self.hidden_indices.insert(i);
             }
             self.positions[i] = [position.0.x, position.0.y];
         }
@@ -2031,7 +2038,7 @@ impl State {
 
         let node_instances = vertex_buffer::build_node_instances(
             &self.positions,
-            Some(&hidden_positions),
+            Some(&self.hidden_indices),
             &self.elements,
             &self.node_shapes,
             self.hovered_index,
@@ -2040,7 +2047,7 @@ impl State {
         let (edge_vertices, arrow_vertices) = vertex_buffer::build_line_and_arrow_vertices(
             &self.edges,
             &self.positions,
-            Some(&hidden_positions),
+            Some(&self.hidden_indices),
             &self.node_shapes,
             &self.elements,
             self.zoom,
@@ -2075,6 +2082,25 @@ impl State {
                 bytemuck::cast_slice(&[uniforms]),
             );
         }
+
+        self.queue.write_buffer(
+            &self.edge_vertex_buffer,
+            0,
+            &vec![0; self.edge_vertex_buffer.size() as usize],
+        );
+        self.queue.write_buffer(
+            &self.arrow_vertex_buffer,
+            0,
+            &vec![0; self.arrow_vertex_buffer.size() as usize],
+        );
+        self.queue.write_buffer(
+            &self.node_instance_buffer,
+            0,
+            &vec![0; self.node_instance_buffer.size() as usize],
+        );
+
+        self.num_edge_vertices = edge_vertices.len() as u32;
+        self.num_arrow_vertices = arrow_vertices.len() as u32;
 
         self.queue.write_buffer(
             &self.edge_vertex_buffer,
@@ -2751,7 +2777,7 @@ impl State {
         // Iterate backwards to prioritize nodes drawn "on top"
         for (i, pos_array) in self.positions.iter().enumerate().rev() {
             // Skip nodes that aren't drawn
-            if matches!(self.elements[i], ElementType::NoDraw) {
+            if matches!(self.elements[i], ElementType::NoDraw) || self.hidden_indices.contains(&i) {
                 continue;
             }
 
