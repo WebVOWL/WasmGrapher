@@ -1186,19 +1186,19 @@ impl State {
                             owned_spans.push(("Thing".to_string(), attrs.clone()));
                         }
                         OwlNode::Complement => {
-                            owned_spans.push((label_or_node_name, attrs.clone()));
+                            owned_spans.push((label_or_empty, attrs.clone()));
                             owned_spans.push(("\n\n¬".to_string(), attrs.clone()));
                         }
                         OwlNode::DisjointUnion => {
-                            owned_spans.push((label_or_node_name, attrs.clone()));
+                            owned_spans.push((label_or_empty, attrs.clone()));
                             owned_spans.push(("\n\n1".to_string(), attrs.clone()));
                         }
                         OwlNode::IntersectionOf => {
-                            owned_spans.push((label_or_node_name, attrs.clone()));
+                            owned_spans.push((label_or_empty, attrs.clone()));
                             owned_spans.push(("\n\n∩".to_string(), attrs.clone()));
                         }
                         OwlNode::UnionOf => {
-                            owned_spans.push((label_or_node_name, attrs.clone()));
+                            owned_spans.push((label_or_empty, attrs.clone()));
                             owned_spans.push(("\n\n∪".to_string(), attrs.clone()));
                         }
                         _ => {
