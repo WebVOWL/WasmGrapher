@@ -388,9 +388,9 @@ dependencies = [
 
 [[package]]
 name = "chrono"
-version = "0.4.43"
+version = "0.4.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fac4744fb15ae8337dc853fee7fb3f4e48c0fbaa23d0afe49c447b4fab126118"
+checksum = "c673075a2e0e5f4a1dde27ce9dee1ea4558c7ffe648f576438a20ca1d2acc4b0"
 dependencies = [
  "iana-time-zone",
  "js-sys",
@@ -2245,7 +2245,7 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 [[package]]
 name = "radguy"
 version = "0.1.0"
-source = "git+https://github.com/DATP7/radguy?branch=vowl-tweaks#18c803cec9301cc123ff001764d9df701f680443"
+source = "git+https://github.com/DATP7/radguy/?branch=vowl-tweaks#0e2575194ac9f23035fab3eacbf936a184bfa29f"
 dependencies = [
  "fixedbitset",
  "itertools 0.14.0",
@@ -2256,7 +2256,7 @@ dependencies = [
 [[package]]
 name = "radguy-ccs"
 version = "0.1.0"
-source = "git+https://github.com/DATP7/radguy?branch=vowl-tweaks#18c803cec9301cc123ff001764d9df701f680443"
+source = "git+https://github.com/DATP7/radguy/?branch=vowl-tweaks#0e2575194ac9f23035fab3eacbf936a184bfa29f"
 dependencies = [
  "chrono",
  "itertools 0.14.0",
@@ -2734,7 +2734,7 @@ dependencies = [
 [[package]]
 name = "sovs-parser"
 version = "0.1.0"
-source = "git+https://github.com/WebVOWL/sovs-parser#f86adff4fbd5149bebf41c40b3a8b064ecfaa297"
+source = "git+https://github.com/WebVOWL/sovs-parser#508360a6b78b92a0121afc38ec7550542b09ca13"
 dependencies = [
  "hashbag",
  "itertools 0.14.0",
