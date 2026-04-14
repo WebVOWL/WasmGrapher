@@ -3,7 +3,7 @@ mod node_shape;
 mod vertex_buffer;
 
 use crate::{
-    events::render_event::RenderEvent,
+    events::{gui_events::GUIEvent, render_event::RenderEvent},
     graph_data::GraphDisplayData,
     prelude::{EVENT_DISPATCHER, SimulatorEvent},
     quadtree::QuadTree,
@@ -2531,9 +2531,20 @@ impl State {
                 if let Some(pos) = self.cursor_position {
                     self.click_start_pos = self.cursor_position;
 
-                    if !self.node_dragged && self.hovered_index == -1 {
+                    if !self.node_dragged {
+                        if self.hovered_index == -1 {
                         self.pan_active = true;
                         self.last_pan_position = Some(pos);
+                        } else {
+                            // Node is being clicked
+                            #[expect(
+                                clippy::cast_sign_loss,
+                                reason = "index is either -1 or non-negative. the first case is checked just before"
+                            )]
+                            EVENT_DISPATCHER
+                                .gui_write_chan
+                                .send(GUIEvent::ShowMetadata(self.hovered_index as usize));
+                        }
                     }
 
                     if !self.pan_active {

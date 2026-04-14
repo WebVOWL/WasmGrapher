@@ -4,7 +4,9 @@ pub mod simulator_event;
 
 use flume::{Receiver, Sender};
 
-use crate::events::{render_event::RenderEvent, simulator_event::SimulatorEvent};
+use crate::events::{
+    gui_events::GUIEvent, render_event::RenderEvent, simulator_event::SimulatorEvent,
+};
 
 #[expect(clippy::struct_field_names)]
 pub struct EventDispatcher {
@@ -15,8 +17,8 @@ pub struct EventDispatcher {
     pub rend_read_chan: Receiver<RenderEvent>,
     pub rend_write_chan: Sender<RenderEvent>,
     /// Receiver must only be consumed by the GUI
-    pub gui_read_chan: Receiver<RenderEvent>,
-    pub gui_write_chan: Sender<RenderEvent>,
+    pub gui_read_chan: Receiver<GUIEvent>,
+    pub gui_write_chan: Sender<GUIEvent>,
 }
 
 impl Default for EventDispatcher {
