@@ -2131,7 +2131,7 @@ impl State {
                 }
                 RenderEvent::CenterGraph => self.center_graph(),
                 RenderEvent::LoadGraph(graph) => {
-                    self.load_new_graph(graph);
+                    self.load_new_graph(*graph);
                 }
             }
         }

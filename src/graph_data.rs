@@ -4,6 +4,49 @@ pub use crate::renderer::elements::{
 use rkyv::{Archive, Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
+#[repr(C)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Default)]
+pub struct GraphMetadata {
+    /// Stores comments of terms, keyed by the element's index in [`GraphDisplayData::elements`].
+    ///
+    /// rdfs:comment
+    pub comments: HashMap<usize, String>,
+    /// Maps from an element's index in [`GraphDisplayData::elements`] to the IRI which defines it.
+    ///
+    /// rdfs:isDefinedBy
+    pub is_defined_by: HashMap<usize, String>,
+    /// Maps from an element's index in [`GraphDisplayData::elements`] to the IRI which provides additional info about it.
+    ///
+    /// rdfs:seeAlso
+    pub see_also: HashMap<usize, HashSet<String>>,
+    /// Stores the version of terms, keyed by the element's index in [`GraphDisplayData::elements`].
+    ///
+    /// owl:versionInfo
+    pub version_info: HashMap<usize, String>,
+    /// Describes the version of an ontology.
+    ///
+    /// owl:versionIRI
+    pub version_iri: Option<String>,
+    /// Describes the prior version of an ontology.
+    ///
+    /// owl:priorVersion
+    pub prior_version: Option<String>,
+    /// Describes the prior version of the ontology that is incompatible with the current version, i.e., [`Self::version_iri`]-
+    ///
+    /// owl:incompatibleWith
+    pub incompatible_with: Option<String>,
+    /// Describes the prior version of the ontology that is compatible with the current version, i.e., [`Self::version_iri`]-
+    ///
+    /// owl:backwardCompatibleWith
+    pub backward_compatible_with: Option<String>,
+}
+
+impl GraphMetadata {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 /// Struct containing graph data for grapher
 #[repr(C)]
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Default)]
@@ -38,6 +81,7 @@ pub struct GraphDisplayData {
     pub characteristics: HashMap<usize, HashSet<Characteristic>>,
     /// Track number of individuals connected to a specific element
     pub individual_counts: HashMap<usize, u32>,
+    pub graph_metadata: GraphMetadata,
 }
 
 impl GraphDisplayData {
@@ -145,6 +189,8 @@ impl GraphDisplayData {
             cardinalities,
             characteristics,
             individual_counts,
+            // Metadata is currently not used by WasmGrapher
+            graph_metadata: GraphMetadata::default(),
         }
     }
 }
