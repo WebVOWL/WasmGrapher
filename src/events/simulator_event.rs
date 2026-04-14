@@ -5,7 +5,7 @@ use glam::Vec2;
 use std::collections::HashMap;
 
 /// Describes an event received by a [`Simulator`].
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum SimulatorEvent {
     /// The simulation's repel force has been updated.
     RepelForceUpdated(f32),
