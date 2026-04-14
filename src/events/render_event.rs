@@ -5,12 +5,6 @@ use crate::{graph_data::GraphDisplayData, prelude::ElementType};
 /// Describes an event received by a render [`State`].
 #[derive(PartialEq)]
 pub enum RenderEvent {
-    /// Hide an [`ElementType`] during rendering.
-    ElementFiltered(ElementType),
-
-    /// Show an [`ElementType`] during rendering.
-    ElementShown(ElementType),
-
     /// Pause graph simulation.
     Paused,
 

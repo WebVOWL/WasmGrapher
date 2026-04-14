@@ -2119,8 +2119,6 @@ impl State {
     pub fn handle_external_events(&mut self) {
         for event in EVENT_DISPATCHER.rend_read_chan.drain() {
             match event {
-                RenderEvent::ElementFiltered(_element) => todo!(),
-                RenderEvent::ElementShown(_element) => todo!(),
                 RenderEvent::Paused => self.paused = true,
                 RenderEvent::Resumed => self.paused = false,
                 RenderEvent::Zoomed(zoom) => {
@@ -2533,8 +2531,8 @@ impl State {
 
                     if !self.node_dragged {
                         if self.hovered_index == -1 {
-                        self.pan_active = true;
-                        self.last_pan_position = Some(pos);
+                            self.pan_active = true;
+                            self.last_pan_position = Some(pos);
                         } else {
                             // Node is being clicked
                             #[expect(
