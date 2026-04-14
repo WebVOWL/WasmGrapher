@@ -1,11 +1,11 @@
 pub mod elements;
-pub mod events;
 mod node_shape;
 mod vertex_buffer;
 
 use crate::{
+    events::render_event::RenderEvent,
     graph_data::GraphDisplayData,
-    prelude::EVENT_DISPATCHER,
+    prelude::{EVENT_DISPATCHER, SimulatorEvent},
     quadtree::QuadTree,
     renderer::{
         elements::{
@@ -17,13 +17,11 @@ use crate::{
             rdfs::{RdfsEdge, RdfsNode, RdfsType},
             xsd::{XSDNode, XSDType},
         },
-        events::RenderEvent,
         node_shape::NodeShape,
     },
     simulator::{
         Simulator,
         components::nodes::{Position, Shown},
-        ressources::events::SimulatorEvent,
     },
 };
 use glam::Vec2;

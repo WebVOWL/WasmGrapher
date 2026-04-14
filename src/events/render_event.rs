@@ -1,8 +1,6 @@
 //! Event channels for communicating with the renderer from the outside.
 
-use crate::graph_data::GraphDisplayData;
-
-use super::ElementType;
+use crate::{graph_data::GraphDisplayData, prelude::ElementType};
 
 /// Describes an event received by a render [`State`].
 #[derive(PartialEq)]
@@ -27,5 +25,5 @@ pub enum RenderEvent {
     CenterGraph,
 
     /// Loads a new graph from input
-    LoadGraph(GraphDisplayData),
+    LoadGraph(Box<GraphDisplayData>),
 }

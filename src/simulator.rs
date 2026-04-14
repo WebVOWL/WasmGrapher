@@ -1,6 +1,7 @@
 pub mod components;
 pub mod ressources;
 mod systems;
+use crate::events::simulator_event::SimulatorEvent;
 use crate::prelude::{EVENT_DISPATCHER, ElementType};
 use crate::simulator::components::nodes::{Fixed, NodeType, Shown};
 use crate::simulator::systems::visibility_update::{VisibilitySystemData, update_visibility};
@@ -12,12 +13,9 @@ use crate::{
             forces::NodeForces,
             nodes::{Degree, Mass, Position, Velocity},
         },
-        ressources::{
-            events::SimulatorEvent,
-            simulator_vars::{
-                CursorPosition, Damping, DeltaTime, FreezeThreshold, GravityForce,
-                PointIntersection, QuadTreeTheta, RepelForce, SpringNeutralLength, SpringStiffness,
-            },
+        ressources::simulator_vars::{
+            CursorPosition, Damping, DeltaTime, FreezeThreshold, GravityForce, PointIntersection,
+            QuadTreeTheta, RepelForce, SpringNeutralLength, SpringStiffness,
         },
         systems::{
             force_compute::{
