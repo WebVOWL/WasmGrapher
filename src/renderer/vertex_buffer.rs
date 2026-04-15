@@ -320,10 +320,10 @@ pub fn build_line_and_arrow_vertices(
                     let dy = dir_start_n[1];
                     let mut scale = f32::INFINITY;
                     if dx.abs() > 1e-6 {
-                        scale = scale.min((w * 0.9 / 2.0) / dx.abs());
+                        scale = scale.min((w * 0.9) / dx.abs());
                     }
                     if dy.abs() > 1e-6 {
-                        scale = scale.min((h * 0.25 / 2.0) / dy.abs());
+                        scale = scale.min((h * 0.25) / dy.abs());
                     }
                     if scale.is_finite() {
                         [
