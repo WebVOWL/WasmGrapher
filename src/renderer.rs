@@ -780,34 +780,6 @@ impl State {
             }
         }
 
-        // Filter duplicates
-        for ((node_a, node_b), centers) in neighbor_map {
-            let mut center_set = HashSet::new();
-            let mut visible_centers = Vec::new();
-            let initial_count = centers.len();
-
-            for (center, src) in centers {
-                let key = (elements[center], labels[center].clone(), src);
-                if center_set.contains(&key) {
-                    elements[center] = ElementType::NoDraw;
-                    node_shapes[center] = match node_shapes[center] {
-                        NodeShape::Circle { r } => NodeShape::Circle { r: 0.01 },
-                        NodeShape::Rectangle { w, h } => NodeShape::Rectangle { w: 0.01, h: 0.01 },
-                    }
-                } else if !matches!(elements[center], ElementType::NoDraw) {
-                    center_set.insert(key);
-                    visible_centers.push((center, src));
-                }
-            }
-
-            // Update solitary edges
-            if initial_count >= 2 && visible_centers.len() == 1 {
-                let (center, start) = visible_centers[0];
-                let end = if start == node_a { node_b } else { node_a };
-                solitary_edges.push([start, center, end]);
-            }
-        }
-
         let mut sim_nodes = Vec::with_capacity(positions.len());
         for pos in &positions {
             sim_nodes.push(Vec2::new(pos[0], pos[1]));
@@ -2457,34 +2429,6 @@ impl State {
                 ) && num_neighbors <= 2)
             {
                 self.solitary_edges.push([*start, *center, *end]);
-            }
-        }
-
-        // Filter duplicates in reloaded graph
-        for ((node_a, node_b), centers) in neighbor_map {
-            let mut center_set = HashSet::new();
-            let mut visible_centers = Vec::new();
-            let initial_count = centers.len();
-
-            for (center, src) in centers {
-                let key = (self.elements[center], self.labels[center].clone(), src);
-                if center_set.contains(&key) {
-                    self.elements[center] = ElementType::NoDraw;
-                    self.node_shapes[center] = match self.node_shapes[center] {
-                        NodeShape::Circle { r } => NodeShape::Circle { r: 0.01 },
-                        NodeShape::Rectangle { w, h } => NodeShape::Rectangle { w: 0.01, h: 0.01 },
-                    }
-                } else {
-                    center_set.insert(key);
-                    visible_centers.push((center, src));
-                }
-            }
-
-            // Update solitary edges
-            if initial_count >= 2 && visible_centers.len() == 1 {
-                let (center, start) = visible_centers[0];
-                let end = if start == node_a { node_b } else { node_a };
-                self.solitary_edges.push([start, center, end]);
             }
         }
 
