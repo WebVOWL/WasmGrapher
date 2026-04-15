@@ -1201,6 +1201,9 @@ impl State {
                             owned_spans.push((label_or_empty, attrs.clone()));
                             owned_spans.push(("\n\n∪".to_string(), attrs.clone()));
                         }
+                        OwlNode::AnonymousClass => {
+                            owned_spans.push((label_or_empty, attrs.clone()));
+                        }
                         _ => {
                             owned_spans.push((label_or_node_name, attrs.clone()));
                         }
