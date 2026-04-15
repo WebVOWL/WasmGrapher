@@ -21,7 +21,7 @@ pub mod prelude {
 
     pub use crate::events::render_event::RenderEvent;
     pub use crate::events::simulator_event::SimulatorEvent;
-    pub use crate::graph_data::GraphDisplayData;
+    pub use crate::graph_data::{GraphDisplayData, GraphMetadata};
     pub use crate::quadtree::{BoundingBox2D, Node, QuadTree};
     pub use crate::renderer::elements::{
         characteristic::Characteristic, element_type::ElementType, generic::*, owl::*, rdf::*,
