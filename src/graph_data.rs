@@ -7,6 +7,14 @@ use std::collections::{HashMap, HashSet};
 #[repr(C)]
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Default)]
 pub struct GraphMetadata {
+    /// The base IRI of the document.
+    ///
+    /// For instance: `http://purl.obolibrary.org/obo/envo.owl`
+    pub document_base: String,
+    /// The description of the ontology.
+    pub description: String,
+    /// The authors of the ontology,
+    pub authors: Vec<String>,
     /// Stores comments of terms, keyed by the element's index in [`GraphDisplayData::elements`].
     ///
     /// rdfs:comment
