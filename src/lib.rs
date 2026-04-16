@@ -19,8 +19,9 @@ pub mod prelude {
     use crate::events::EventDispatcher;
     use std::sync::LazyLock;
 
-    pub use crate::events::render_event::RenderEvent;
-    pub use crate::events::simulator_event::SimulatorEvent;
+    pub use crate::events::{
+        gui_events::GUIEvent, render_event::RenderEvent, simulator_event::SimulatorEvent,
+    };
     pub use crate::graph_data::{GraphDisplayData, GraphMetadata};
     pub use crate::quadtree::{BoundingBox2D, Node, QuadTree};
     pub use crate::renderer::elements::{
