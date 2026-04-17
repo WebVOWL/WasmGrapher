@@ -1,6 +1,8 @@
 //! Event channels for communicating with the simulator from the outside.
 
+use crate::renderer::elements::element_type::ElementType;
 use glam::Vec2;
+use std::collections::HashMap;
 
 /// Describes an event received by a [`Simulator`].
 #[derive(Clone, PartialEq)]
@@ -40,4 +42,13 @@ pub enum SimulatorEvent {
 
     /// The position of the dragged node has changed.
     Dragged(Vec2),
+
+    /// Update the visibility of entities.
+    ///
+    /// Elements that are false in the map are hidden from view.
+    ///
+    /// Any entity that is left in an invalid state due to other
+    /// entities becoming hidden are removed as well.
+    /// For instance, if the domain of an edge is removed, the edge is too.
+    HideEntities(HashMap<ElementType, bool>),
 }

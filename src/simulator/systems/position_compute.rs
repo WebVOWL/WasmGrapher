@@ -1,5 +1,5 @@
 use crate::simulator::{
-    components::nodes::{Mass, Position},
+    components::nodes::{Mass, Position, Shown},
     ressources::simulator_vars::{CursorPosition, PointIntersection},
 };
 use glam::Vec2;
@@ -12,6 +12,7 @@ use specs::{Entities, Join, Read, ReadStorage, Write};
 pub struct DistanceSystemData<'a> {
     entities: Entities<'a>,
     positions: ReadStorage<'a, Position>,
+    shown: ReadStorage<'a, Shown>,
     cursor_position: Read<'a, CursorPosition>,
     intersection: Write<'a, PointIntersection>,
     masses: ReadStorage<'a, Mass>,
@@ -19,7 +20,9 @@ pub struct DistanceSystemData<'a> {
 
 /// TODO: Implement using quadtree to improve performance
 pub fn distance(mut data: DistanceSystemData) {
-    for (entity, circle, mass) in (&*data.entities, &data.positions, &data.masses).join() {
+    for (entity, circle, mass, _) in
+        (&*data.entities, &data.positions, &data.masses, &data.shown).join()
+    {
         let node_radius: f32 = 48.0 * mass.0;
 
         let d = (data.cursor_position.0.x - circle.0.x).mul_add(
@@ -31,12 +34,7 @@ pub fn distance(mut data: DistanceSystemData) {
             // This node contains the cursor's position.
             // It is the node being dragged.
             data.intersection.0 = i64::from(entity.id());
-
-            // info!(
-            //     "Point {0} intersect [{1}]",
-            //     data.cursor_position.0,
-            //     entity.id()
-            // );
+            break;
         }
     }
 }

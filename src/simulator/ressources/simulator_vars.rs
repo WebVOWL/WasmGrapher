@@ -84,7 +84,7 @@ impl Default for QuadTreeTheta {
 
 impl Default for FreezeThreshold {
     fn default() -> Self {
-        Self(1.0)
+        Self(15.0)
     }
 }
 

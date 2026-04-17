@@ -1,14 +1,16 @@
 pub mod components;
 pub mod ressources;
 mod systems;
-use crate::prelude::EVENT_DISPATCHER;
+use crate::prelude::{EVENT_DISPATCHER, ElementType};
+use crate::simulator::components::nodes::{Fixed, NodeType, Shown};
+use crate::simulator::systems::visibility_update::{VisibilitySystemData, update_visibility};
 use crate::{
     quadtree::{BoundingBox2D, QuadTree},
     simulator::{
         components::{
             edges::Connects,
             forces::NodeForces,
-            nodes::{Degree, Mass, NodeState, Position, Velocity},
+            nodes::{Degree, Mass, Position, Velocity},
         },
         ressources::{
             events::SimulatorEvent,
@@ -79,6 +81,8 @@ type EventSystemData<'a> = (
     Write<'a, Damping>,
     Write<'a, QuadTreeTheta>,
     Write<'a, FreezeThreshold>,
+    ReadStorage<'a, Fixed>,
+    Read<'a, LazyUpdate>,
 );
 
 pub struct Simulator<'a, 'b> {
@@ -109,6 +113,8 @@ impl Simulator<'_, '_> {
             mut damping,
             mut quadtree_theta,
             mut freeze_threshold,
+            fixed,
+            updater,
         ) = event_data;
 
         let mut event_received = false;
@@ -156,13 +162,17 @@ impl Simulator<'_, '_> {
                         sys_dragging(dragging_data);
                     }
                 }
+                SimulatorEvent::HideEntities(element_checks) => {
+                    let visibility_data: VisibilitySystemData = world.system_data();
+                    update_visibility(visibility_data, element_checks);
+                }
             }
         }
         if event_received {
-            let mut node_states: WriteStorage<NodeState> = world.system_data();
+            let entities = world.entities();
 
-            (&mut node_states).par_join().for_each(|state| {
-                state.fixed = false;
+            (&entities, &fixed).join().for_each(|(entity, _)| {
+                updater.remove::<Fixed>(entity);
             });
         }
     }
@@ -259,11 +269,15 @@ impl SimulatorBuilder {
     /// Constructs a instance of `Simulator`
     pub fn build<'a, 'b>(
         self,
+        element_types: &[ElementType],
         nodes: &[Vec2],
         edges: &[[u32; 2]],
         sizes: &[f32],
     ) -> Simulator<'a, 'b> {
         let mut world = World::new();
+        // Register manually as NodeType is not included in a System.
+        world.register::<NodeType>();
+
         let mut dispatcher = DispatcherBuilder::new()
             .with(QuadTreeConstructor, "quadtree_constructor", &[])
             .with(
@@ -294,7 +308,7 @@ impl SimulatorBuilder {
             .build();
 
         dispatcher.setup(&mut world);
-        Self::create_entities(&mut world, nodes, edges, sizes);
+        Self::create_entities(&mut world, element_types, nodes, edges, sizes);
         world.maintain();
         Self::build_degrees(&world);
         self.add_ressources(&mut world);
@@ -316,7 +330,13 @@ impl SimulatorBuilder {
         world.insert(PointIntersection::default());
     }
 
-    fn create_entities(world: &mut World, nodes: &[Vec2], edges: &[[u32; 2]], sizes: &[f32]) {
+    fn create_entities(
+        world: &mut World,
+        element_types: &[ElementType],
+        nodes: &[Vec2],
+        edges: &[[u32; 2]],
+        sizes: &[f32],
+    ) {
         let mut node_entities = Vec::with_capacity(nodes.len());
 
         // Create node entities
@@ -327,7 +347,8 @@ impl SimulatorBuilder {
                 .with(Velocity::default())
                 .with(Mass(sizes[i]))
                 .with(NodeForces::default())
-                .with(NodeState::default())
+                .with(Shown)
+                .with(NodeType(element_types[i]))
                 .build();
             node_entities.push(node_entity);
         }
@@ -340,9 +361,18 @@ impl SimulatorBuilder {
             } else {
                 let new_connects = Connects {
                     targets: vec![node_entities[edge[1] as usize]],
+                    sources: Vec::new(),
                 };
                 edge_components.insert(edge[0], new_connects);
             }
+            edge_components
+                .entry(edge[1])
+                .or_insert(Connects {
+                    targets: Vec::new(),
+                    sources: Vec::new(),
+                })
+                .sources
+                .push(node_entities[edge[0] as usize]);
         }
 
         // Add edge components to node entities
