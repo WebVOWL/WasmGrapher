@@ -427,17 +427,16 @@ impl State {
             let Some(label_text) = labels[i].as_ref() else {
                 continue;
             };
-            let mut measure_text = label_text.clone();
 
             // Use longest string among label and characteristics
-            if let Some(chs) = characteristics.get(&i)
-                && let Some(ch_longest_line) = chs
-                    .iter()
-                    .map(Characteristic::as_ref)
-                    .max_by_key(|s| s.len())
-                && ch_longest_line.len() > measure_text.len()
+            let mut measure_text = label_text.clone();
+
+            if let Some(ch_text) = characteristics
+                .get(&i)
+                .and_then(combined_characteristics_text)
+                && ch_text.len() > measure_text.len()
             {
-                ch_longest_line.clone_into(&mut measure_text);
+                measure_text = ch_text;
             }
 
             // temporary buffer to measure the text
@@ -2267,22 +2266,22 @@ impl State {
                 let label_text: &str = label_text;
 
                 // Use longest string among label and characteristics
-                let mut measure_text: &str = label_text;
-                if let Some(chs) = self.characteristics.get(&i)
-                    && let Some(ch_longest_line) = chs
-                        .iter()
-                        .map(Characteristic::as_ref)
-                        .max_by_key(|s| s.len())
-                    && ch_longest_line.len() > measure_text.len()
+                let mut measure_text = label_text.to_string();
+
+                if let Some(ch_text) = self
+                    .characteristics
+                    .get(&i)
+                    .and_then(combined_characteristics_text)
+                    && ch_text.len() > measure_text.len()
                 {
-                    measure_text = ch_longest_line;
+                    measure_text = ch_text;
                 }
 
                 // temporary buffer to measure the text
                 let mut temp_buffer =
                     glyphon::Buffer::new(font_system, Metrics::new(12.0 * scale, 12.0 * scale));
 
-                temp_buffer.set_text(font_system, measure_text, &Attrs::new(), Shaping::Advanced);
+                temp_buffer.set_text(font_system, &measure_text, &Attrs::new(), Shaping::Advanced);
 
                 // Compute max line width using layout runs
                 let text_width = temp_buffer
@@ -2828,4 +2827,17 @@ struct LabelLayout {
 
 fn line_count(buffer: &glyphon::Buffer) -> usize {
     buffer.layout_runs().count()
+}
+
+fn combined_characteristics_text(chs: &HashSet<Characteristic>) -> Option<String> {
+    if chs.is_empty() {
+        return None;
+    }
+
+    let mut parts = chs
+        .iter()
+        .map(Characteristic::to_string)
+        .collect::<Vec<_>>();
+    parts.sort_unstable();
+    Some(parts.join(", "))
 }
