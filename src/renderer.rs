@@ -24,6 +24,7 @@ use crate::{
         components::nodes::{Position, Shown},
     },
 };
+use async_channel::Sender;
 use glam::Vec2;
 use glyphon::{
     Attrs, Buffer as GlyphBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
@@ -33,12 +34,12 @@ use log::{info, warn};
 use specs::{Join, WorldExt};
 use std::{cmp::min, collections::HashMap, collections::HashSet, sync::Arc};
 use vertex_buffer::{MenuUniforms, NodeInstance, VERTICES, Vertex, ViewUniforms};
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 use wasm_bindgen::prelude::*;
 use web_time::Instant;
 use wgpu::util::DeviceExt;
 use winit::event::MouseButton;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 use winit::platform::web::EventLoopExtWebSys;
 use winit::{dpi::PhysicalPosition, event::MouseScrollDelta};
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
@@ -58,7 +59,7 @@ pub struct RadialMenuState {
     reason = "i agree, but refactoring seems like a lot of effort"
 )]
 pub struct State {
-    // #[cfg(target_arch = "wasm32")]
+    // #[cfg(all(target_family = "wasm", target_os = "unknown"))]
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -2535,13 +2536,30 @@ impl State {
                             self.last_pan_position = Some(pos);
                         } else {
                             // Node is being clicked
-                            #[expect(
-                                clippy::cast_sign_loss,
-                                reason = "index is either -1 or non-negative. the first case is checked just before"
-                            )]
-                            EVENT_DISPATCHER
-                                .gui_write_chan
-                                .send(GUIEvent::ShowMetadata(self.hovered_index as usize));
+                            #[cfg(all(target_family = "wasm", target_os = "unknown"))]
+                            {
+                                let hovered_index = self.hovered_index as usize;
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    #[expect(
+                                        clippy::cast_sign_loss,
+                                        reason = "index is either -1 or non-negative. the first case is checked just before"
+                                    )]
+                                    EVENT_DISPATCHER
+                                        .gui_write_chan
+                                        .send(GUIEvent::ShowMetadata(hovered_index))
+                                        .await;
+                                });
+                            }
+                            #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+                            {
+                                #[expect(
+                                    clippy::cast_sign_loss,
+                                    reason = "index is either -1 or non-negative. the first case is checked just before"
+                                )]
+                                EVENT_DISPATCHER.gui_write_chan.send_blocking(
+                                    GUIEvent::ShowMetadata(self.hovered_index as usize),
+                                );
+                            }
                         }
                     }
 
