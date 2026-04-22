@@ -11,6 +11,8 @@ pub struct GraphMetadata {
     ///
     /// For instance: `http://purl.obolibrary.org/obo/envo.owl`
     pub document_base: String,
+    /// The title of the ontology.
+    pub title: String,
     /// The description of the ontology.
     pub description: String,
     /// The authors of the ontology,
