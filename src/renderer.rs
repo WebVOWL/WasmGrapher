@@ -1,11 +1,11 @@
 pub mod elements;
-pub mod events;
 mod node_shape;
 mod vertex_buffer;
 
 use crate::{
+    events::{gui_events::GUIEvent, render_event::RenderEvent},
     graph_data::GraphDisplayData,
-    prelude::EVENT_DISPATCHER,
+    prelude::{EVENT_DISPATCHER, SimulatorEvent},
     quadtree::QuadTree,
     renderer::{
         elements::{
@@ -17,13 +17,11 @@ use crate::{
             rdfs::{RdfsEdge, RdfsNode, RdfsType},
             xsd::{XSDNode, XSDType},
         },
-        events::RenderEvent,
         node_shape::NodeShape,
     },
     simulator::{
         Simulator,
         components::nodes::{Position, Shown},
-        ressources::events::SimulatorEvent,
     },
 };
 use glam::Vec2;
@@ -2121,8 +2119,6 @@ impl State {
     pub fn handle_external_events(&mut self) {
         for event in EVENT_DISPATCHER.rend_read_chan.drain() {
             match event {
-                RenderEvent::ElementFiltered(_element) => todo!(),
-                RenderEvent::ElementShown(_element) => todo!(),
                 RenderEvent::Paused => self.paused = true,
                 RenderEvent::Resumed => self.paused = false,
                 RenderEvent::Zoomed(zoom) => {
@@ -2131,7 +2127,7 @@ impl State {
                 }
                 RenderEvent::CenterGraph => self.center_graph(),
                 RenderEvent::LoadGraph(graph) => {
-                    self.load_new_graph(graph);
+                    self.load_new_graph(*graph);
                 }
             }
         }
@@ -2533,9 +2529,20 @@ impl State {
                 if let Some(pos) = self.cursor_position {
                     self.click_start_pos = self.cursor_position;
 
-                    if !self.node_dragged && self.hovered_index == -1 {
-                        self.pan_active = true;
-                        self.last_pan_position = Some(pos);
+                    if !self.node_dragged {
+                        if self.hovered_index == -1 {
+                            self.pan_active = true;
+                            self.last_pan_position = Some(pos);
+                        } else {
+                            // Node is being clicked
+                            #[expect(
+                                clippy::cast_sign_loss,
+                                reason = "index is either -1 or non-negative. the first case is checked just before"
+                            )]
+                            EVENT_DISPATCHER
+                                .gui_write_chan
+                                .send(GUIEvent::ShowMetadata(self.hovered_index as usize));
+                        }
                     }
 
                     if !self.pan_active {
