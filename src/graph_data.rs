@@ -62,6 +62,9 @@ pub struct GraphMetadataHeader {
     ///
     /// owl:backwardCompatibleWith
     pub backward_compatible_with: Option<String>,
+    /// Maps from an element's index in [`GraphDisplayData::elements`] to its list of annotations,
+    /// in the form `(AnnotationProperty, AnnotationValue)`.
+    pub annotations: HashMap<usize, Vec<(String, String)>>,
 }
 
 impl GraphMetadataHeader {
