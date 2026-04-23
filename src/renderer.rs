@@ -2530,37 +2530,9 @@ impl State {
                 if let Some(pos) = self.cursor_position {
                     self.click_start_pos = self.cursor_position;
 
-                    if !self.node_dragged {
-                        if self.hovered_index == -1 {
-                            self.pan_active = true;
-                            self.last_pan_position = Some(pos);
-                        } else {
-                            // Node is being clicked
-                            #[cfg(all(target_family = "wasm", target_os = "unknown"))]
-                            {
-                                let hovered_index = self.hovered_index as usize;
-                                wasm_bindgen_futures::spawn_local(async move {
-                                    #[expect(
-                                        clippy::cast_sign_loss,
-                                        reason = "index is either -1 or non-negative. the first case is checked just before"
-                                    )]
-                                    EVENT_DISPATCHER
-                                        .gui_write_chan
-                                        .send(GUIEvent::ShowMetadata(hovered_index))
-                                        .await;
-                                });
-                            }
-                            #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
-                            {
-                                #[expect(
-                                    clippy::cast_sign_loss,
-                                    reason = "index is either -1 or non-negative. the first case is checked just before"
-                                )]
-                                EVENT_DISPATCHER.gui_write_chan.send_blocking(
-                                    GUIEvent::ShowMetadata(self.hovered_index as usize),
-                                );
-                            }
-                        }
+                    if !self.node_dragged && self.hovered_index == -1 {
+                        self.pan_active = true;
+                        self.last_pan_position = Some(pos);
                     }
 
                     if !self.pan_active {
@@ -2569,6 +2541,23 @@ impl State {
                         EVENT_DISPATCHER
                             .sim_write_chan
                             .send(SimulatorEvent::DragStart(pos_world));
+                    }
+
+                    let hovered_index = usize::try_from(self.hovered_index).ok();
+                    #[cfg(all(target_family = "wasm", target_os = "unknown"))]
+                    {
+                        wasm_bindgen_futures::spawn_local(async move {
+                            EVENT_DISPATCHER
+                                .gui_write_chan
+                                .send(GUIEvent::ShowMetadata(hovered_index))
+                                .await;
+                        });
+                    }
+                    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+                    {
+                        EVENT_DISPATCHER
+                            .gui_write_chan
+                            .send_blocking(GUIEvent::ShowMetadata(hovered_index));
                     }
                 }
             }
