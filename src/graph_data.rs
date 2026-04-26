@@ -1,20 +1,51 @@
 pub use crate::renderer::elements::{
     characteristic::Characteristic, element_type::ElementType, owl::*, rdf::*, rdfs::*,
 };
-use rkyv::{Archive, Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+
+/// A language tag, e.g., `en`.
+type LanguageTag = String;
+/// A term specific for metadata, e.g., `<http://www.w3.org/2000/01/rdf-schema#comment>`
+type MetadataTerm = Arc<String>;
+/// The metadata contents of a specific type, e.g., `rdfs:comment`.
+type MetadataContent = Vec<String>;
+/// Stores the metadata associated with a language tag.
+///
+/// The same metadata can be written in multiple languages.
+type TaggedMetadata = HashMap<LanguageTag, MetadataContent>;
+/// Stores the metadata associated with a metadata type.
+///
+/// There exist many types of metadata, e.g., `rdfs:comment`, `dc:creator`.
+type MetadataType = HashMap<MetadataTerm, TaggedMetadata>;
+/// Stores the metadata of an [`ElementType`] in the graph.
+///
+/// An [`ElementType`] does not necessarily have metadata associated with it.
+type ElementTypeMetadata = HashMap<usize, MetadataType>;
 
 #[repr(C)]
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Default, Debug)]
+#[derive(
+    rkyv::Archive, rkyv::Deserialize, rkyv::Serialize, PartialEq, Eq, Clone, Default, Debug,
+)]
 pub struct GraphMetadataHeader {
     /// The base IRI of the document.
     ///
     /// For instance: `http://purl.obolibrary.org/obo/envo.owl`
     pub document_base: String,
     /// The title of the ontology.
-    pub title: String,
+    pub title: TaggedMetadata,
     /// The description of the ontology.
-    pub description: String,
+    pub description: TaggedMetadata,
+    /// Stores creators of the document.
+    ///
+    /// dc:creator | dcterms:creator
+    pub creator: TaggedMetadata,
+    /// Stores contributors of the document.
+    ///
+    /// dc:contributor | dcterms:contributor
+    pub contributor: TaggedMetadata,
     /// Describes the version of an ontology.
     ///
     /// owl:versionIRI
@@ -23,11 +54,11 @@ pub struct GraphMetadataHeader {
     ///
     /// owl:priorVersion
     pub prior_version: Option<String>,
-    /// Describes the prior version of the ontology that is incompatible with the current version, i.e., [`Self::version_iri`]-
+    /// Describes the prior version of the ontology that is incompatible with the current version, i.e., [`Self::version_iri`].
     ///
     /// owl:incompatibleWith
     pub incompatible_with: Option<String>,
-    /// Describes the prior version of the ontology that is compatible with the current version, i.e., [`Self::version_iri`]-
+    /// Describes the prior version of the ontology that is compatible with the current version, i.e., [`Self::version_iri`].
     ///
     /// owl:backwardCompatibleWith
     pub backward_compatible_with: Option<String>,
@@ -41,86 +72,18 @@ impl GraphMetadataHeader {
 }
 
 #[repr(C)]
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Default, Debug)]
+#[derive(
+    rkyv::Archive, rkyv::Deserialize, rkyv::Serialize, PartialEq, Eq, Clone, Default, Debug,
+)]
 pub struct GraphMetadata {
     /// The header of the graph.
+    ///
+    /// This stores metadata related to the document base of the graph.
     pub graph_header: GraphMetadataHeader,
-    /// Stores creators of an element, keyed by the element's index in [`GraphDisplayData::elements`].
+    /// Stores the metadata of an [`ElementType`] in the graph.
     ///
-    /// dc:creator | dcterms:creator
-    pub creator: HashMap<usize, Vec<String>>,
-    /// Stores contributors of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:contributor | dcterms:contributor
-    pub contributor: HashMap<usize, Vec<String>>,
-    /// Stores the coverage of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:coverage | dcterms:coverage
-    pub coverage: HashMap<usize, String>,
-    /// Stores the date of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:date | dcterms:date
-    pub date: HashMap<usize, String>,
-    /// Stores the description of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:description | dcterms:description
-    pub description: HashMap<usize, String>,
-    /// Stores the format of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:format | dcterms:format
-    pub format: HashMap<usize, String>,
-    /// Stores the identifier of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:identifier | dcterms:identifier
-    pub identifier: HashMap<usize, String>,
-    /// Stores the language of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:language | dcterms:language
-    pub language: HashMap<usize, String>,
-    /// Stores publishers of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:publisher | dcterms:publisher
-    pub publisher: HashMap<usize, Vec<String>>,
-    /// Stores relations of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:relation | dcterms:relation
-    pub relation: HashMap<usize, Vec<String>>,
-    /// Stores rights of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:rights | dcterms:rights
-    pub rights: HashMap<usize, Vec<String>>,
-    /// Stores sources of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:source | dcterms:source
-    pub source: HashMap<usize, Vec<String>>,
-    /// Stores the subject of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:subject | dcterms:subject
-    pub subject: HashMap<usize, String>,
-    /// Stores the title of an element, keyed by the element's index in [`GraphDisplayData::elements`]
-    /// .
-    /// dc:title | dcterms:title
-    pub title: HashMap<usize, String>,
-    /// Stores the type of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// dc:type | dcterms:type
-    pub r#type: HashMap<usize, String>,
-    /// Stores the comment of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// rdfs:comment
-    pub comments: HashMap<usize, String>,
-    /// Maps from an element's index in [`GraphDisplayData::elements`] to the IRI which defines it.
-    ///
-    /// rdfs:isDefinedBy
-    pub is_defined_by: HashMap<usize, String>,
-    /// Maps from an element's index in [`GraphDisplayData::elements`] to the IRI which provides additional info about it.
-    ///
-    /// rdfs:seeAlso
-    pub see_also: HashMap<usize, HashSet<String>>,
-    /// Stores the version of an element, keyed by the element's index in [`GraphDisplayData::elements`].
-    ///
-    /// owl:versionInfo
-    pub version_info: HashMap<usize, String>,
+    /// An [`ElementType`] does not necessarily have metadata associated with it.
+    pub metadata_type: ElementTypeMetadata,
 }
 
 impl GraphMetadata {
@@ -132,7 +95,7 @@ impl GraphMetadata {
 
 /// Struct containing graph data for grapher
 #[repr(C)]
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Default)]
+#[derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize, PartialEq, Eq, Clone, Default)]
 pub struct GraphDisplayData {
     /// Labels annotate classes and properties
     ///
