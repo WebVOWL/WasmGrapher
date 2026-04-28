@@ -2606,28 +2606,29 @@ impl State {
                             self.radial_menu_state.active = false;
                         } else {
                             // Open radial menu
-                            #[expect(clippy::cast_sign_loss, reason = "hovered must be positive")]
-                            let idx = hovered as usize;
+                            // TODO: Enable radial menu when functionality is implemented
+                            // #[expect(clippy::cast_sign_loss, reason = "hovered must be positive")]
+                            // let idx = hovered as usize;
 
-                            // Determine size based on node shape
-                            let (w_base, h_base) = match self.node_shapes[idx] {
-                                NodeShape::Circle { r } => (r * 50.0, r * 50.0),
-                                NodeShape::Rectangle { w, h } => (w * 42.5, h * 25.0),
-                            };
-                            let base_size = w_base.max(h_base);
+                            // // Determine size based on node shape
+                            // let (w_base, h_base) = match self.node_shapes[idx] {
+                            //     NodeShape::Circle { r } => (r * 50.0, r * 50.0),
+                            //     NodeShape::Rectangle { w, h } => (w * 42.5, h * 25.0),
+                            // };
+                            // let base_size = w_base.max(h_base);
 
-                            self.radial_menu_state = RadialMenuState {
-                                active: true,
-                                target_node_index: idx,
-                                center_world: Vec2::new(
-                                    self.positions[idx][0],
-                                    self.positions[idx][1],
-                                ),
-                                radius_inner: base_size + 15.0, // Slight gap
-                                radius_outer: base_size + 65.0, // Ring width
-                                hovered_segment: -1,
-                                menu_buffers: self.radial_menu_state.menu_buffers.clone(),
-                            };
+                            // self.radial_menu_state = RadialMenuState {
+                            //     active: true,
+                            //     target_node_index: idx,
+                            //     center_world: Vec2::new(
+                            //         self.positions[idx][0],
+                            //         self.positions[idx][1],
+                            //     ),
+                            //     radius_inner: base_size + 15.0, // Slight gap
+                            //     radius_outer: base_size + 65.0, // Ring width
+                            //     hovered_segment: -1,
+                            //     menu_buffers: self.radial_menu_state.menu_buffers.clone(),
+                            // };
                         }
                     }
                 }
