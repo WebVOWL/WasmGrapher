@@ -62,9 +62,6 @@ pub struct GraphMetadataHeader {
     ///
     /// owl:backwardCompatibleWith
     pub backward_compatible_with: Option<String>,
-    /// Maps from an element's index in [`GraphDisplayData::elements`] to its list of annotations,
-    /// in the form `(AnnotationProperty, AnnotationValue)`.
-    pub annotations: HashMap<usize, Vec<(String, String)>>,
 }
 
 impl GraphMetadataHeader {
@@ -87,6 +84,9 @@ pub struct GraphMetadata {
     ///
     /// An [`ElementType`] does not necessarily have metadata associated with it.
     pub metadata_type: ElementTypeMetadata,
+    /// Maps from an element's index in [`GraphDisplayData::elements`] to its list of annotations,
+    /// in the form `(AnnotationProperty, AnnotationValue)`.
+    pub annotations: HashMap<usize, Vec<(String, String)>>,
 }
 
 impl GraphMetadata {
