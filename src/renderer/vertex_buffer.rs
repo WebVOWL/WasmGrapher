@@ -12,7 +12,7 @@ use crate::renderer::{
 };
 
 // Number of segments to divide each Bézier curve into for strip generation
-const BEZIER_SEGMENTS: usize = 32;
+const BEZIER_SEGMENTS: usize = 16;
 
 // --- Uniforms ---
 #[repr(C)]
@@ -237,6 +237,7 @@ fn normalize(v: [f32; 2]) -> [f32; 2] {
     }
 }
 
+#[expect(clippy::too_many_arguments)]
 pub fn build_line_and_arrow_vertices(
     edges: &[[usize; 3]],
     node_positions: &[[f32; 2]],
@@ -245,6 +246,7 @@ pub fn build_line_and_arrow_vertices(
     elements: &[ElementType],
     zoom: f32,
     hovered_index: i32,
+    solitary_edges: &HashSet<[usize; 3]>,
 ) -> (Vec<EdgeVertex>, Vec<EdgeVertex>) {
     const LINE_THICKNESS: f32 = 2.25;
     const ARROW_LENGTH_PX: f32 = 10.0;
@@ -414,8 +416,14 @@ pub fn build_line_and_arrow_vertices(
             line_vertices.push(*prev_last);
         }
 
-        for i in 0..=BEZIER_SEGMENTS {
-            let t = i as f32 / BEZIER_SEGMENTS as f32;
+        let bezier_segments = if solitary_edges.contains(&[start_idx, center_idx, end_idx]) {
+            1
+        } else {
+            BEZIER_SEGMENTS
+        };
+
+        for i in 0..=bezier_segments {
+            let t = i as f32 / bezier_segments as f32;
             let point = bezier_point(start, ctrl, end, t);
             let tangent = normalize(bezier_tangent(start, ctrl, end, t));
 
@@ -601,6 +609,7 @@ pub fn create_edge_vertex_buffer(
         elements,
         zoom,
         hovered_index,
+        &HashSet::new(),
     );
 
     let line_count = line_vertices.len() as u32;
