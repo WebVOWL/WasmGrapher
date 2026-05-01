@@ -65,7 +65,7 @@ impl<'a> System<'a> for QuadTreeConstructor {
         quadtree.boundary = BoundingBox2D::new((dir / 2.0) + min, dir[0], dir[1]);
 
         for (entity, position, mass) in (&entities, &positions, &masses).join() {
-            quadtree.insert_id(entity.id(), position.0, mass.0);
+            quadtree.insert_id(entity.id() as usize, position.0, mass.0);
         }
     }
 }

@@ -59,7 +59,7 @@ impl<'a> System<'a> for ComputeNodeForce {
             .par_join()
             .for_each(|(entity, pos, mass, node_forces, _, (), ())| {
                 node_forces.0 = quadtree.approximate_forces_on_body(
-                    entity.id(),
+                    entity.id() as usize,
                     pos.0,
                     mass.0,
                     theta.0,
