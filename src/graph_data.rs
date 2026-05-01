@@ -76,6 +76,8 @@ impl GraphMetadataHeader {
     rkyv::Archive, rkyv::Deserialize, rkyv::Serialize, PartialEq, Eq, Clone, Default, Debug,
 )]
 pub struct GraphMetadata {
+    /// Stores all language tags registered.
+    pub languages: Vec<Option<String>>,
     /// The header of the graph.
     ///
     /// This stores metadata related to the document base of the graph.
