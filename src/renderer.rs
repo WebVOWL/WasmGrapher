@@ -86,7 +86,7 @@ pub struct State {
     positions: Vec<[f32; 2]>,
     labels: Vec<Option<String>>,
     edges: Vec<[usize; 3]>,
-    solitary_edges: Vec<[usize; 3]>,
+    solitary_edges: HashSet<[usize; 3]>,
     elements: Vec<ElementType>,
     node_shapes: Vec<NodeShape>,
     cardinalities: Vec<(u32, (String, Option<String>))>,
@@ -765,7 +765,7 @@ impl State {
                 .push((*center, *start));
         }
 
-        let mut solitary_edges: Vec<[usize; 3]> = vec![];
+        let mut solitary_edges: HashSet<[usize; 3]> = HashSet::new();
         for [start, center, end] in &edges {
             #[expect(clippy::unwrap_used)]
             let num_neighbors = neighbor_map
@@ -778,7 +778,7 @@ impl State {
                     ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
                 ) && num_neighbors <= 2)
             {
-                solitary_edges.push([*start, *center, *end]);
+                solitary_edges.insert([*start, *center, *end]);
             }
         }
 
@@ -2049,6 +2049,7 @@ impl State {
             &self.elements,
             self.zoom,
             self.hovered_index,
+            &self.solitary_edges.clone(),
         );
 
         // Update menu hover state
@@ -2449,7 +2450,7 @@ impl State {
                 .push((*center, *start));
         }
 
-        self.solitary_edges = vec![];
+        self.solitary_edges = HashSet::new();
         for [start, center, end] in &self.edges {
             #[expect(clippy::unwrap_used)]
             let num_neighbors = neighbor_map
@@ -2462,7 +2463,7 @@ impl State {
                     ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
                 ) && num_neighbors <= 2)
             {
-                self.solitary_edges.push([*start, *center, *end]);
+                self.solitary_edges.insert([*start, *center, *end]);
             }
         }
 
