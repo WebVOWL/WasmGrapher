@@ -12,7 +12,7 @@ use crate::renderer::{
 };
 
 // Number of segments to divide each Bézier curve into for strip generation
-const BEZIER_SEGMENTS: usize = 16;
+const BEZIER_SEGMENTS: usize = 12;
 
 // --- Uniforms ---
 #[repr(C)]
