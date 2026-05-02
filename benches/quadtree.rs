@@ -32,7 +32,7 @@ fn quadtree_insert(c: &mut Criterion) {
 fn quadtree_barnes_hut(c: &mut Criterion) {
     const THETA: f32 = 1.0;
     const REPEL_FORCE: f32 = -1e8;
-    const NODES: [u32; 5] = [3_000, 30_000, 300_000, 3_000_000, 30_000_000];
+    const NODES: [usize; 5] = [3_000, 30_000, 300_000, 3_000_000, 30_000_000];
 
     let w = 1000.0;
     let bb = BoundingBox2D::new(Vec2::ZERO, w, w);
@@ -54,7 +54,7 @@ fn quadtree_barnes_hut(c: &mut Criterion) {
             .expect("Insert should succeed");
         }
 
-        group.throughput(criterion::Throughput::Elements(u64::from(i)));
+        group.throughput(criterion::Throughput::Elements(i as u64));
         group.bench_function(BenchmarkId::new("Barnes-Hut", i), |b| {
             b.iter(|| {
                 qt.approximate_forces_on_body(
