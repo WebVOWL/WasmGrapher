@@ -416,11 +416,12 @@ pub fn build_line_and_arrow_vertices(
             line_vertices.push(*prev_last);
         }
 
-        let bezier_segments = if solitary_edges.contains(&[start_idx, center_idx, end_idx]) {
-            1
-        } else {
-            BEZIER_SEGMENTS
-        };
+        let bezier_segments =
+            if solitary_edges.contains(&[start_idx, center_idx, end_idx]) && start_idx != end_idx {
+                1
+            } else {
+                BEZIER_SEGMENTS
+            };
 
         for i in 0..=bezier_segments {
             let t = i as f32 / bezier_segments as f32;
