@@ -114,9 +114,9 @@ All Generic elements.
 
 Element codes for Generic nodes.
 
-| Code  | Type    | Comment |
-| :---: | :------ | :------ |
-| 40000 | Generic |         |
+| Code  | Type    | Comment                                |
+| :---: | :------ | :------------------------------------- |
+| 40000 | Generic | Elements with an unspecified node type |
 
 ### Edges [`50_000` .. `59_999`]
 

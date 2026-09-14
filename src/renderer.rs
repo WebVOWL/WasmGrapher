@@ -335,7 +335,9 @@ impl State {
                 ElementType::NoDraw => {
                     node_shapes.push(NodeShape::Circle { r: 1.0 });
                 }
-                ElementType::Generic(generic_type) => todo!(),
+                ElementType::Generic(generic_type) => {
+                    node_shapes.push(NodeShape::Circle { r: 1.0 });
+                }
                 ElementType::Xsd(XSDType::Node(node)) => match node {
                     XSDNode::Int
                     | XSDNode::Integer
@@ -2208,7 +2210,9 @@ impl State {
                 ElementType::NoDraw => {
                     node_shapes.push(NodeShape::Circle { r: 1.0 });
                 }
-                ElementType::Generic(_generic_type) => todo!(),
+                ElementType::Generic(_generic_type) => {
+                    node_shapes.push(NodeShape::Circle { r: 1.0 });
+                }
                 ElementType::Xsd(XSDType::Node(node)) => match node {
                     XSDNode::Int
                     | XSDNode::Integer

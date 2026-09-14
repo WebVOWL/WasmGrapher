@@ -81,6 +81,7 @@ const DOT_EDGE = 0.01;         // softness of dot edges
 // colors
 const BACKGROUND_COLOR = vec3<f32>(0.93, 0.94, 0.95);
 const LIGHT_BLUE = vec3<f32>(0.67, 0.8, 1.0);
+const LIGHT_YELLOW = vec3<f32>(0.988, 0.988, 0.812);
 const DARK_BLUE = vec3<f32>(0.2, 0.4, 0.8);
 const RDFS_COLOR = vec3<f32>(0.8, 0.6, 0.8);
 const LITERAL_COLOR = vec3<f32>(1.0, 0.8, 0.2);
@@ -102,7 +103,7 @@ fn fs_node_main(in: VertOut) -> @location(0) vec4<f32> {
     return col;
 }
 
-fn draw_class(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
+fn draw_class(v_uv: vec2<f32>, base_color: vec3<f32>, hovered: u32) -> vec4<f32> {
     let d = distance(v_uv, vec2<f32>(0.5, 0.5));
     let r = 0.48;
     let aa_softness_world = EDGE_SOFTNESS / u_view.zoom;
@@ -113,7 +114,7 @@ fn draw_class(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
     var border_mask = smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d)
                     * (1.0 - smoothstep(r, r + aa_softness_world, d));
 
-    var fill_color = LIGHT_BLUE;
+    var fill_color = base_color;
     if hovered == 1u {
         fill_color = HIGHLIGHTED_COLOR;
     }
@@ -545,33 +546,6 @@ fn draw_literal(v_uv: vec2<f32>, shape_dimensions: vec2<f32>, hovered: u32) -> v
     return vec4<f32>(col, alpha);
 }
 
-fn draw_rdfs_class(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
-    let d = distance(v_uv, vec2<f32>(0.5, 0.5));
-    let r = 0.48;
-    let aa_softness_world = EDGE_SOFTNESS / u_view.zoom;
-
-    // smooth fill mask (circle inside without border)
-    var fill_mask = 1.0 - smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d);
-
-    // smooth border mask (ring around circle)
-    var border_mask = smoothstep(r - BORDER_THICKNESS, r - BORDER_THICKNESS + aa_softness_world, d)
-                    * (1.0 - smoothstep(r, r + aa_softness_world, d));
-
-    var fill_color = RDFS_COLOR;
-    if hovered == 1u {
-        fill_color = HIGHLIGHTED_COLOR;
-    }
-
-    // blend smoothly: background -> border -> fill
-    var col = mix(BACKGROUND_COLOR, BORDER_COLOR, border_mask);
-    col = mix(col, fill_color, fill_mask);
-
-    // smooth alpha (fill + border)
-    let alpha = clamp(fill_mask + border_mask, 0.0, 1.0);
-
-    return vec4<f32>(col, alpha);
-}
-
 fn draw_rdfs_resource(v_uv: vec2<f32>, hovered: u32) -> vec4<f32> {
     let d = distance(v_uv, vec2<f32>(0.5, 0.5));
     let r = 0.48;
@@ -791,7 +765,7 @@ fn draw_node_by_type(element_type: u32, v_uv: vec2<f32>, shape_dimensions: vec2<
         // RDF edges
         case 15000: { return draw_property(v_uv, shape_dimensions, RDFS_COLOR, hovered); }
         // RDFS nodes
-        case 20000: { return draw_rdfs_class(v_uv, hovered); }
+        case 20000: { return draw_class(v_uv, RDFS_COLOR, hovered); }
         case 20001: { return draw_literal(v_uv, shape_dimensions, hovered); }
         case 20002: { return draw_rdfs_resource(v_uv, hovered); }
         case 20003: { return draw_datatype(v_uv, shape_dimensions, hovered); }
@@ -799,7 +773,7 @@ fn draw_node_by_type(element_type: u32, v_uv: vec2<f32>, shape_dimensions: vec2<
         case 25000: { return draw_property(v_uv, shape_dimensions, vec3<f32>(1.0), hovered); }
         // OWL nodes
         case 30000: { return draw_anonymous_class(v_uv, hovered); }
-        case 30001: { return draw_class(v_uv, hovered); }
+        case 30001: { return draw_class(v_uv, LIGHT_BLUE, hovered); }
         case 30002: { return draw_complement(v_uv, hovered); }
         case 30003: { return draw_deprecated_class(v_uv, hovered); }
         case 30004: { return draw_external_class(v_uv, hovered); }
@@ -818,7 +792,7 @@ fn draw_node_by_type(element_type: u32, v_uv: vec2<f32>, shape_dimensions: vec2<
         case 35005: { return draw_property(v_uv, shape_dimensions, LIGHT_BLUE, hovered); }
         case 35006: { return draw_property(v_uv, shape_dimensions, LIGHT_BLUE, hovered); }
         // Generic
-        case 40000: { return vec4<f32>(0.0); } // TODO: Define Generic node
+        case 40000: { return draw_class(v_uv, LIGHT_YELLOW, hovered); }
         case 50000: { return vec4<f32>(0.0); } // TODO: Define Generic edge
         // XSD nodes
         case 60001
