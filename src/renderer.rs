@@ -44,6 +44,11 @@ use winit::platform::web::EventLoopExtWebSys;
 use winit::{dpi::PhysicalPosition, event::MouseScrollDelta};
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 
+const ZOOM_SENSITIVITY: f32 = 0.025;
+const ZOOM_MIN: f32 = 0.01;
+const ZOOM_MAX: f32 = 4.0;
+const HIDE_TEXT_AT_ZOOM: f32 = 0.25;
+
 pub struct RadialMenuState {
     pub active: bool,
     pub target_node_index: usize,
@@ -1447,6 +1452,8 @@ impl State {
         let vp_h_px = self.config.height as f32 * scale;
         let vp_w_px = self.config.width as f32 * scale;
 
+        let mut areas: Vec<TextArea> = Vec::new();
+
         // PRE-CALCULATE LAYOUTS
 
         // Radial Menu Layout
@@ -1478,6 +1485,8 @@ impl State {
             None
         };
 
+        // Skip text rendering when zoomed far out
+        if self.zoom > HIDE_TEXT_AT_ZOOM {
         let mut node_layouts: Vec<LabelLayout> = Vec::with_capacity(self.positions.len());
 
         if let Some(text_buffers) = self.text_buffers.as_ref() {
@@ -1596,7 +1605,8 @@ impl State {
                             0.0
                         };
 
-                        let len_sq = dir_world_x.mul_add(dir_world_x, dir_world_y * dir_world_y);
+                            let len_sq =
+                                dir_world_x.mul_add(dir_world_x, dir_world_y * dir_world_y);
                         let len_world = len_sq.sqrt().max(1.0);
                         let nx_world = dir_world_x / len_world;
                         let ny_world = dir_world_y / len_world;
@@ -1716,9 +1726,51 @@ impl State {
             }
         }
 
-        // CONSTRUCT TEXT AREAS
+            // Node Label Areas
+            if let Some(text_buffers) = self.text_buffers.as_ref() {
+                for layout in node_layouts {
+                    areas.push(TextArea {
+                        buffer: &text_buffers[layout.buffer_index],
+                        left: layout.left,
+                        top: layout.top,
+                        scale: layout.scale_factor,
+                        bounds: layout.bounds,
+                        default_color: Color::rgb(0, 0, 0),
+                        custom_glyphs: &[],
+                    });
+                }
+            }
 
-        let mut areas: Vec<TextArea> = Vec::new();
+            // Cardinality Areas
+            if let Some(card_buffers) = self.cardinality_text_buffers.as_ref() {
+                for layout in card_layouts {
+                    areas.push(TextArea {
+                        buffer: &card_buffers[layout.buffer_index].1,
+                        left: layout.left,
+                        top: layout.top,
+                        scale: layout.scale_factor,
+                        bounds: layout.bounds,
+                        default_color: Color::rgb(0, 0, 0),
+                        custom_glyphs: &[],
+                    });
+                }
+            }
+
+            if let Some(count_buffers) = self.individual_count_text_buffers.as_ref() {
+                for layout in individual_count_layouts {
+                    areas.push(TextArea {
+                        buffer: &count_buffers[layout.buffer_index].1,
+                        left: layout.left,
+                        top: layout.top,
+                        scale: layout.scale_factor,
+                        bounds: layout.bounds,
+                        default_color: Color::rgb(150, 150, 150),
+                        custom_glyphs: &[],
+                    });
+                }
+            }
+        }
+        // CONSTRUCT TEXT AREAS
 
         // Radial Menu Areas
         if let Some((top_screen, bot_screen, c_top, c_bot)) = menu_layout
@@ -1783,52 +1835,9 @@ impl State {
             });
         }
 
-        // Node Label Areas
-        if let Some(text_buffers) = self.text_buffers.as_ref() {
-            for layout in node_layouts {
-                areas.push(TextArea {
-                    buffer: &text_buffers[layout.buffer_index],
-                    left: layout.left,
-                    top: layout.top,
-                    scale: layout.scale_factor,
-                    bounds: layout.bounds,
-                    default_color: Color::rgb(0, 0, 0),
-                    custom_glyphs: &[],
-                });
-            }
-        }
-
-        // Cardinality Areas
-        if let Some(card_buffers) = self.cardinality_text_buffers.as_ref() {
-            for layout in card_layouts {
-                areas.push(TextArea {
-                    buffer: &card_buffers[layout.buffer_index].1,
-                    left: layout.left,
-                    top: layout.top,
-                    scale: layout.scale_factor,
-                    bounds: layout.bounds,
-                    default_color: Color::rgb(0, 0, 0),
-                    custom_glyphs: &[],
-                });
-            }
-        }
-
-        if let Some(count_buffers) = self.individual_count_text_buffers.as_ref() {
-            for layout in individual_count_layouts {
-                areas.push(TextArea {
-                    buffer: &count_buffers[layout.buffer_index].1,
-                    left: layout.left,
-                    top: layout.top,
-                    scale: layout.scale_factor,
-                    bounds: layout.bounds,
-                    default_color: Color::rgb(150, 150, 150),
-                    custom_glyphs: &[],
-                });
-            }
-        }
-
         // RENDER
 
+        if self.zoom > HIDE_TEXT_AT_ZOOM {
         // Prepare glyphon
         if let (
             Some(font_system),
@@ -1865,7 +1874,10 @@ impl State {
                 |meta: usize| {
                     let i = meta.min(self.num_instances as usize - 1) as f32;
 
-                    #[expect(clippy::cast_sign_loss, reason = "This is handled in the statement")]
+                        #[expect(
+                            clippy::cast_sign_loss,
+                            reason = "This is handled in the statement"
+                        )]
                     if self.hovered_index >= 0 && meta == self.hovered_index as usize {
                         0.0
                     } else if meta > self.num_instances as usize {
@@ -1878,7 +1890,7 @@ impl State {
                 log::error!("glyphon prepare_with_depth failed: {e:?}");
             }
         }
-
+        }
         // Setup Render Pass
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -1961,6 +1973,7 @@ impl State {
                 render_pass.draw(0..6, 0..1);
             }
 
+            if self.zoom > HIDE_TEXT_AT_ZOOM {
             // Text
             if let (Some(atlas), Some(viewport), Some(text_renderer)) = (
                 self.atlas.as_mut(),
@@ -1971,6 +1984,7 @@ impl State {
                 text_renderer
                     .render(atlas, viewport, &mut render_pass)
                     .unwrap();
+                }
             }
         }
 
@@ -2706,14 +2720,13 @@ impl State {
         let world_pos_before = self.screen_to_world(cursor_pos_screen);
 
         // 2. Calculate new zoom
-        let zoom_sensitivity = 0.025;
         let zoom_factor = if scroll_amount > 0.0 {
-            1.0 + scroll_amount * zoom_sensitivity
+            1.0 + scroll_amount * ZOOM_SENSITIVITY
         } else {
-            1.0 / (-scroll_amount).mul_add(zoom_sensitivity, 1.0)
+            1.0 / (-scroll_amount).mul_add(ZOOM_SENSITIVITY, 1.0)
         };
         self.zoom *= zoom_factor;
-        self.zoom = self.zoom.clamp(0.05, 4.0);
+        self.zoom = self.zoom.clamp(ZOOM_MIN, ZOOM_MAX);
 
         // 3. We want the world_pos_before to stay at cursor_pos_screen.
         //    Find the new pan that makes this true.
