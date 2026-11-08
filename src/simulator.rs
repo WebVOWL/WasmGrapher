@@ -51,13 +51,11 @@ impl<'a> System<'a> for QuadTreeConstructor {
     fn run(&mut self, (mut quadtree, entities, positions, masses): Self::SystemData) {
         let mut min = Vec2::INFINITY;
         let mut max = Vec2::NEG_INFINITY;
-        let mut count = 0;
 
         // Join with masses to get node positions (as edges do not have the Mass component)
         for (i, (position, _)) in (&positions, &masses).join().enumerate() {
             min = min.min(position.0);
             max = max.max(position.0);
-            count = i;
         }
 
         let dir = max - min;
