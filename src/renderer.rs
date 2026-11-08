@@ -1432,7 +1432,7 @@ impl State {
 
         if elapsed.as_secs_f32() >= 1.0 {
             let fps = self.fps_counter as f32 / elapsed.as_secs_f32();
-            info!("FPS: {:.2} | zoom: {:.2}", fps, self.zoom);
+            // info!("FPS: {:.2}", fps);
 
             // Reset counters
             self.last_fps_time = now;
