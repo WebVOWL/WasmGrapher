@@ -448,20 +448,14 @@ impl State {
             let mut temp_buffer =
                 glyphon::Buffer::new(&mut font_system, Metrics::new(12.0 * scale, 12.0 * scale));
 
-            temp_buffer.set_text(
-                &mut font_system,
-                &measure_text,
-                &Attrs::new(),
-                Shaping::Advanced,
-            );
+            temp_buffer.set_text(&measure_text, &Attrs::new(), Shaping::Advanced, None);
+            temp_buffer.shape_until_scroll(&mut font_system, false);
 
             // Compute max line width using layout runs
             let text_width = temp_buffer
                 .layout_runs()
                 .map(|run| run.line_w)
                 .fold(0.0, f32::max);
-
-            temp_buffer.shape_until_scroll(&mut font_system, false);
 
             let mut capped_width = 44.0 * scale;
             let mut max_lines = 0;
@@ -2318,15 +2312,14 @@ impl State {
                 let mut temp_buffer =
                     glyphon::Buffer::new(font_system, Metrics::new(12.0 * scale, 12.0 * scale));
 
-                temp_buffer.set_text(font_system, &measure_text, &Attrs::new(), Shaping::Advanced);
+                temp_buffer.set_text(&measure_text, &Attrs::new(), Shaping::Advanced, None);
+                temp_buffer.shape_until_scroll(font_system, false);
 
                 // Compute max line width using layout runs
                 let text_width = temp_buffer
                     .layout_runs()
                     .map(|run| run.line_w)
                     .fold(0.0, f32::max);
-
-                temp_buffer.shape_until_scroll(font_system, false);
 
                 let mut capped_width = 44.0 * scale;
                 let mut max_lines = 0;
