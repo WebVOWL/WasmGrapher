@@ -37,12 +37,17 @@ use vertex_buffer::{MenuUniforms, NodeInstance, VERTICES, Vertex, ViewUniforms};
 #[cfg(all(target_family = "wasm", target_os = "unknown"))]
 use wasm_bindgen::prelude::*;
 use web_time::Instant;
-use wgpu::util::DeviceExt;
+use wgpu::{BackendOptions, Instance, InstanceFlags, MemoryBudgetThresholds, util::DeviceExt};
 use winit::event::MouseButton;
 #[cfg(all(target_family = "wasm", target_os = "unknown"))]
 use winit::platform::web::EventLoopExtWebSys;
 use winit::{dpi::PhysicalPosition, event::MouseScrollDelta};
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
+
+const ZOOM_SENSITIVITY: f32 = 0.025;
+const ZOOM_MIN: f32 = 0.01;
+const ZOOM_MAX: f32 = 4.0;
+const HIDE_TEXT_AT_ZOOM: f32 = 0.25;
 
 pub struct RadialMenuState {
     pub active: bool,
@@ -156,9 +161,12 @@ impl State {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends,
-            ..Default::default()
+            flags: InstanceFlags::default(),
+            memory_budget_thresholds: MemoryBudgetThresholds::default(),
+            backend_options: BackendOptions::default(),
+            display: None,
         });
 
         let surface = instance.create_surface(window.clone())?;
@@ -168,6 +176,7 @@ impl State {
                 power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
+                apply_limit_buckets: true,
             })
             .await?;
 
@@ -208,6 +217,7 @@ impl State {
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
+            color_space: wgpu::SurfaceColorSpace::Auto,
         };
 
         // Always configure surface, even if size is zero
@@ -448,20 +458,14 @@ impl State {
             let mut temp_buffer =
                 glyphon::Buffer::new(&mut font_system, Metrics::new(12.0 * scale, 12.0 * scale));
 
-            temp_buffer.set_text(
-                &mut font_system,
-                &measure_text,
-                &Attrs::new(),
-                Shaping::Advanced,
-            );
+            temp_buffer.set_text(&measure_text, &Attrs::new(), Shaping::Advanced, None);
+            temp_buffer.shape_until_scroll(&mut font_system, false);
 
             // Compute max line width using layout runs
             let text_width = temp_buffer
                 .layout_runs()
                 .map(|run| run.line_w)
                 .fold(0.0, f32::max);
-
-            temp_buffer.shape_until_scroll(&mut font_system, false);
 
             let mut capped_width = 44.0 * scale;
             let mut max_lines = 0;
@@ -505,15 +509,10 @@ impl State {
                 None => {}
             }
 
-            temp_buffer.set_wrap(&mut font_system, glyphon::Wrap::Word);
-            temp_buffer.set_size(&mut font_system, Some(capped_width), None);
+            temp_buffer.set_wrap(glyphon::Wrap::Word);
+            temp_buffer.set_size(Some(capped_width), None);
 
-            temp_buffer.set_text(
-                &mut font_system,
-                label_text,
-                &Attrs::new(),
-                Shaping::Advanced,
-            );
+            temp_buffer.set_text(label_text, &Attrs::new(), Shaping::Advanced, None);
             temp_buffer.shape_until_scroll(&mut font_system, false);
 
             if line_count(&temp_buffer) > max_lines {
@@ -535,12 +534,7 @@ impl State {
 
                     let candidate = format!("{}…", &current_text[..cut]);
 
-                    temp_buffer.set_text(
-                        &mut font_system,
-                        &candidate,
-                        &Attrs::new(),
-                        Shaping::Advanced,
-                    );
+                    temp_buffer.set_text(&candidate, &Attrs::new(), Shaping::Advanced, None);
                     temp_buffer.shape_until_scroll(&mut font_system, false);
 
                     let lines = line_count(&temp_buffer);
@@ -595,8 +589,8 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&resolution_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(&resolution_bind_group_layout)],
+                ..Default::default()
             });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -606,7 +600,7 @@ impl State {
                 module: &shader,
                 entry_point: Some("vs_node_main"),
                 // include both the per-vertex quad buffer and the per-instance positions buffer
-                buffers: &[Vertex::desc(), NodeInstance::desc()],
+                buffers: &[Some(Vertex::desc()), Some(NodeInstance::desc())],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -633,8 +627,8 @@ impl State {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::LessEqual,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::LessEqual),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
@@ -643,7 +637,7 @@ impl State {
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -675,7 +669,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &edge_shader,
                 entry_point: Some("vs_edge_main"),
-                buffers: &[vertex_buffer::EdgeVertex::desc()],
+                buffers: &[Some(vertex_buffer::EdgeVertex::desc())],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -699,8 +693,8 @@ impl State {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::LessEqual,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::LessEqual),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
@@ -709,7 +703,7 @@ impl State {
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -719,7 +713,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &edge_shader,
                 entry_point: Some("vs_edge_main"),
-                buffers: &[vertex_buffer::EdgeVertex::desc()],
+                buffers: &[Some(vertex_buffer::EdgeVertex::desc())],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -743,8 +737,8 @@ impl State {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::LessEqual,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::LessEqual),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
@@ -753,7 +747,7 @@ impl State {
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -850,8 +844,11 @@ impl State {
 
         let menu_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Menu Pipeline Layout"),
-            bind_group_layouts: &[&resolution_bind_group_layout, &menu_bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[
+                Some(&resolution_bind_group_layout),
+                Some(&menu_bind_group_layout),
+            ],
+            ..Default::default()
         });
 
         let radial_menu_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -860,7 +857,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &menu_shader,
                 entry_point: Some("vs_main"),
-                buffers: &[Vertex::desc()],
+                buffers: &[Some(Vertex::desc())],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -881,13 +878,13 @@ impl State {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Less),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -1053,8 +1050,8 @@ impl State {
             wgpu::MultisampleState::default(),
             Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::LessEqual,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::LessEqual),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
@@ -1109,8 +1106,8 @@ impl State {
                     (width * scale * r, height * scale)
                 }
             };
-            buf.set_size(&mut font_system, Some(label_width), Some(label_height));
-            buf.set_wrap(&mut font_system, glyphon::Wrap::Word);
+            buf.set_size(Some(label_width), Some(label_height));
+            buf.set_wrap(glyphon::Wrap::Word);
             // sample label using the ElementType
             let attrs = &Attrs::new().family(Family::SansSerif).metadata(i);
             let element_metrics = Metrics::new(font_px - 3.0, line_px);
@@ -1276,7 +1273,6 @@ impl State {
                 .collect();
 
             buf.set_rich_text(
-                &mut font_system,
                 spans,
                 attrs,
                 Shaping::Advanced,
@@ -1295,7 +1291,7 @@ impl State {
             let mut buf = GlyphBuffer::new(&mut font_system, Metrics::new(font_px, line_px));
             let label_width = 48.0 * scale;
             let label_height = 24.0 * scale;
-            buf.set_size(&mut font_system, Some(label_width), Some(label_height));
+            buf.set_size(Some(label_width), Some(label_height));
 
             let attrs = &Attrs::new().family(Family::SansSerif);
             let cardinality_text = cardinality_max.as_ref().map_or_else(
@@ -1304,7 +1300,6 @@ impl State {
             );
             let spans = vec![(cardinality_text.as_str(), attrs.clone())];
             buf.set_rich_text(
-                &mut font_system,
                 spans,
                 attrs,
                 Shaping::Advanced,
@@ -1331,7 +1326,7 @@ impl State {
             let font_px = 11.0 * scale;
             let line_px = 11.0 * scale;
             let mut buf = GlyphBuffer::new(&mut font_system, Metrics::new(font_px, line_px));
-            buf.set_size(&mut font_system, Some(24.0 * scale), Some(24.0 * scale));
+            buf.set_size(Some(24.0 * scale), Some(24.0 * scale));
 
             let attrs = &Attrs::new().family(Family::SansSerif).metadata(node_idx);
 
@@ -1339,7 +1334,6 @@ impl State {
             let spans = vec![(count_text.as_str(), attrs.clone())];
 
             buf.set_rich_text(
-                &mut font_system,
                 spans,
                 attrs,
                 Shaping::Advanced,
@@ -1359,13 +1353,13 @@ impl State {
         let menu_metrics = Metrics::new(14.0 * scale, 14.0 * scale);
 
         let mut buf_freeze = GlyphBuffer::new(&mut font_system, menu_metrics);
-        buf_freeze.set_text(&mut font_system, "Freeze", &menu_attrs, Shaping::Advanced);
-        buf_freeze.set_size(&mut font_system, Some(200.0 * scale), None);
+        buf_freeze.set_text("Freeze", &menu_attrs, Shaping::Advanced, None);
+        buf_freeze.set_size(Some(200.0 * scale), None);
         buf_freeze.shape_until_scroll(&mut font_system, false);
 
         let mut buf_sub = GlyphBuffer::new(&mut font_system, menu_metrics);
-        buf_sub.set_text(&mut font_system, "Subgraph", &menu_attrs, Shaping::Advanced);
-        buf_sub.set_size(&mut font_system, Some(200.0 * scale), None);
+        buf_sub.set_text("Subgraph", &menu_attrs, Shaping::Advanced, None);
+        buf_sub.set_size(Some(200.0 * scale), None);
         buf_sub.shape_until_scroll(&mut font_system, false);
 
         self.radial_menu_state.menu_buffers = Some([buf_freeze, buf_sub]);
@@ -1429,7 +1423,7 @@ impl State {
         }
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self) {
         self.window.request_redraw();
 
         self.fps_counter += 1;
@@ -1445,13 +1439,34 @@ impl State {
             self.fps_counter = 0;
         }
 
+        let output = match self.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(surface_texture) => surface_texture,
+            wgpu::CurrentSurfaceTexture::Suboptimal(surface_texture) => {
+                self.surface.configure(&self.device, &self.config);
+                surface_texture
+            }
+            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => return,
+            wgpu::CurrentSurfaceTexture::Outdated => {
+                self.surface.configure(&self.device, &self.config);
+                return;
+            }
+            wgpu::CurrentSurfaceTexture::Lost => {
+                todo!("Surface was lost. Implement proper recovery procedure for this case")
+            }
+            wgpu::CurrentSurfaceTexture::Validation => todo!(
+                "Validation error while rendering. Implement proper recovery procedure for this case"
+            ),
+        };
+
         if !self.is_surface_configured {
-            return Ok(());
+            return;
         }
 
         let scale = self.window.scale_factor() as f32;
         let vp_h_px = self.config.height as f32 * scale;
         let vp_w_px = self.config.width as f32 * scale;
+
+        let mut areas: Vec<TextArea> = Vec::new();
 
         // PRE-CALCULATE LAYOUTS
 
@@ -1484,247 +1499,292 @@ impl State {
             None
         };
 
-        let mut node_layouts: Vec<LabelLayout> = Vec::with_capacity(self.positions.len());
+        // Skip text rendering when zoomed far out
+        if self.zoom > HIDE_TEXT_AT_ZOOM {
+            let mut node_layouts: Vec<LabelLayout> = Vec::with_capacity(self.positions.len());
 
-        if let Some(text_buffers) = self.text_buffers.as_ref() {
-            for (i, buf) in text_buffers.iter().enumerate() {
-                // Skip hidden nodes
-                if i >= self.elements.len() || self.hidden_indices.contains(&i) {
-                    continue;
-                }
-
-                // Node logical coords
-                let node_logical = match self.elements[i] {
-                    ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)) => {
-                        Vec2::new(self.positions[i][0], self.positions[i][1] + 18.0)
+            if let Some(text_buffers) = self.text_buffers.as_ref() {
+                for (i, buf) in text_buffers.iter().enumerate() {
+                    // Skip hidden nodes
+                    if i >= self.elements.len() || self.hidden_indices.contains(&i) {
+                        continue;
                     }
-                    ElementType::Owl(OwlType::Node(
-                        OwlNode::Complement
-                        | OwlNode::DisjointUnion
-                        | OwlNode::IntersectionOf
-                        | OwlNode::UnionOf,
-                    )) => Vec2::new(self.positions[i][0], self.positions[i][1] + 24.0),
-                    _ => Vec2::new(self.positions[i][0], self.positions[i][1]),
-                };
 
-                let screen_pos_logical = self.world_to_screen(node_logical);
-                let y_offset = if self.characteristics.contains_key(&i) {
-                    6.0 * self.zoom
-                } else {
-                    0.0
-                };
-                let node_x_px = screen_pos_logical.x * scale;
-                let node_y_px = screen_pos_logical.y.mul_add(scale, -y_offset);
+                    // Node logical coords
+                    let node_logical = match self.elements[i] {
+                        ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)) => {
+                            Vec2::new(self.positions[i][0], self.positions[i][1] + 18.0)
+                        }
+                        ElementType::Owl(OwlType::Node(
+                            OwlNode::Complement
+                            | OwlNode::DisjointUnion
+                            | OwlNode::IntersectionOf
+                            | OwlNode::UnionOf,
+                        )) => Vec2::new(self.positions[i][0], self.positions[i][1] + 24.0),
+                        _ => Vec2::new(self.positions[i][0], self.positions[i][1]),
+                    };
 
-                let (label_w_opt, label_h_opt) = buf.size();
-                let label_w = label_w_opt.unwrap_or(96.0);
-                let label_h = label_h_opt.unwrap_or(24.0);
+                    let screen_pos_logical = self.world_to_screen(node_logical);
+                    let y_offset = if self.characteristics.contains_key(&i) {
+                        6.0 * self.zoom
+                    } else {
+                        0.0
+                    };
+                    let node_x_px = screen_pos_logical.x * scale;
+                    let node_y_px = screen_pos_logical.y.mul_add(scale, -y_offset);
 
-                let scaled_label_w = label_w * self.zoom;
-                let scaled_label_h = label_h * self.zoom;
+                    let (label_w_opt, label_h_opt) = buf.size();
+                    let label_w = label_w_opt.unwrap_or(96.0);
+                    let label_h = label_h_opt.unwrap_or(24.0);
 
-                let left = node_x_px - scaled_label_w * 0.5;
-                let line_height = 8.0;
-                let top = match self.elements[i] {
-                    ElementType::Owl(OwlType::Node(OwlNode::EquivalentClass)) => {
-                        (2.0f32 * line_height).mul_add(-self.zoom, node_y_px)
+                    let scaled_label_w = label_w * self.zoom;
+                    let scaled_label_h = label_h * self.zoom;
+
+                    let left = node_x_px - scaled_label_w * 0.5;
+                    let line_height = 8.0;
+                    let top = match self.elements[i] {
+                        ElementType::Owl(OwlType::Node(OwlNode::EquivalentClass)) => {
+                            (2.0f32 * line_height).mul_add(-self.zoom, node_y_px)
+                        }
+                        _ => (line_height * scale).mul_add(-self.zoom, node_y_px),
+                    };
+
+                    let right = left + scaled_label_w;
+                    let bottom = top + scaled_label_h;
+
+                    // Cull
+                    if right < 0.0 || left > vp_w_px || bottom < 0.0 || top > vp_h_px {
+                        continue;
                     }
-                    _ => (line_height * scale).mul_add(-self.zoom, node_y_px),
-                };
 
-                let right = left + scaled_label_w;
-                let bottom = top + scaled_label_h;
-
-                // Cull
-                if right < 0.0 || left > vp_w_px || bottom < 0.0 || top > vp_h_px {
-                    continue;
+                    node_layouts.push(LabelLayout {
+                        buffer_index: i,
+                        left,
+                        top,
+                        scale_factor: self.zoom,
+                        bounds: TextBounds {
+                            left: left as i32,
+                            top: top as i32,
+                            right: right as i32,
+                            bottom: bottom as i32,
+                        },
+                    });
                 }
+            }
 
-                node_layouts.push(LabelLayout {
-                    buffer_index: i,
-                    left,
-                    top,
-                    scale_factor: self.zoom,
-                    bounds: TextBounds {
-                        left: left as i32,
-                        top: top as i32,
-                        right: right as i32,
-                        bottom: bottom as i32,
-                    },
-                });
+            // Cardinality Layouts
+            let mut card_layouts: Vec<LabelLayout> = Vec::new();
+            if let Some(card_buffers) = self.cardinality_text_buffers.as_ref() {
+                for (list_idx, (edge_idx, buf)) in card_buffers.iter().enumerate() {
+                    if *edge_idx >= self.edges.len() {
+                        continue;
+                    }
+
+                    let edge = self.edges[*edge_idx];
+                    let center_idx = edge[1];
+                    let end_idx = edge[2];
+
+                    if edge.iter().any(|i| self.hidden_indices.contains(i)) {
+                        continue;
+                    }
+
+                    let center_log_world =
+                        Vec2::new(self.positions[center_idx][0], self.positions[center_idx][1]);
+                    let end_log_world =
+                        Vec2::new(self.positions[end_idx][0], self.positions[end_idx][1]);
+
+                    let dir_world_x = center_log_world.x - end_log_world.x;
+                    let dir_world_y = center_log_world.y - end_log_world.y;
+
+                    let radius_world: f32 = 50.0;
+                    let padding_world = 15.0;
+                    let padding_world_rect = 45.0;
+
+                    let (offset_world_x, offset_world_y) = match self.node_shapes[end_idx] {
+                        NodeShape::Circle { r } => (
+                            (radius_world + padding_world) * r,
+                            (radius_world + padding_world) * r,
+                        ),
+                        NodeShape::Rectangle { w, h } => {
+                            let half_w_world = (w * 0.9 / 2.0) * radius_world;
+                            let half_h_world = (h * 0.25 / 2.0) * radius_world;
+                            let nx = if dir_world_x.abs() > 1e-6 {
+                                dir_world_x.signum()
+                            } else {
+                                0.0
+                            };
+                            let ny = if dir_world_y.abs() > 1e-6 {
+                                dir_world_y.signum()
+                            } else {
+                                0.0
+                            };
+
+                            let len_sq =
+                                dir_world_x.mul_add(dir_world_x, dir_world_y * dir_world_y);
+                            let len_world = len_sq.sqrt().max(1.0);
+                            let nx_world = dir_world_x / len_world;
+                            let ny_world = dir_world_y / len_world;
+
+                            let tx = if nx_world.abs() > 1e-6 {
+                                half_w_world / nx_world.abs()
+                            } else {
+                                f32::INFINITY
+                            };
+                            let ty = if ny_world.abs() > 1e-6 {
+                                half_h_world / ny_world.abs()
+                            } else {
+                                f32::INFINITY
+                            };
+                            let t = tx.min(ty);
+                            let dist = t + padding_world_rect;
+                            (dist, dist)
+                        }
+                    };
+
+                    let len_sq = dir_world_x.mul_add(dir_world_x, dir_world_y * dir_world_y);
+                    let len_world = len_sq.sqrt().max(1.0);
+                    let nx_world = dir_world_x / len_world;
+                    let ny_world = dir_world_y / len_world;
+
+                    let card_world_x = end_log_world.x + nx_world * offset_world_x;
+                    let card_world_y = end_log_world.y + ny_world * offset_world_y;
+
+                    let card_screen_phys =
+                        self.world_to_screen(Vec2::new(card_world_x, card_world_y)) * scale;
+                    let card_x_px = card_screen_phys.x;
+                    let card_y_px = card_screen_phys.y;
+
+                    let (label_w_opt, label_h_opt) = buf.size();
+                    let label_w = label_w_opt.unwrap_or(48.0);
+                    let label_h = label_h_opt.unwrap_or(24.0);
+                    let scaled_label_w = label_w * self.zoom;
+                    let scaled_label_h = label_h * self.zoom;
+
+                    let left = card_x_px - scaled_label_w * 0.5;
+                    let top = card_y_px - scaled_label_h * 0.5;
+                    let right = left + scaled_label_w;
+                    let bottom = top + scaled_label_h;
+
+                    if right < 0.0 || left > vp_w_px || bottom < 0.0 || top > vp_h_px {
+                        continue;
+                    }
+
+                    card_layouts.push(LabelLayout {
+                        buffer_index: list_idx,
+                        left,
+                        top,
+                        scale_factor: self.zoom,
+                        bounds: TextBounds {
+                            left: left as i32,
+                            top: top as i32,
+                            right: right as i32,
+                            bottom: bottom as i32,
+                        },
+                    });
+                }
+            }
+
+            // Individuals
+            let mut individual_count_layouts: Vec<LabelLayout> = Vec::new();
+
+            if let Some(count_buffers) = self.individual_count_text_buffers.as_ref() {
+                for (list_idx, (node_idx, buf)) in count_buffers.iter().enumerate() {
+                    if *node_idx >= self.positions.len()
+                        || matches!(self.elements[*node_idx], ElementType::NoDraw)
+                        || self.hidden_indices.contains(node_idx)
+                    {
+                        continue;
+                    }
+
+                    let node_world =
+                        Vec2::new(self.positions[*node_idx][0], self.positions[*node_idx][1]);
+                    let node_screen_phys = self.world_to_screen(node_world) * scale;
+
+                    let offset_phys = match self.node_shapes[*node_idx] {
+                        NodeShape::Circle { r } => Vec2::new(r / 2.0, 24.0 * r) * self.zoom * scale,
+                        NodeShape::Rectangle { w, h } => {
+                            Vec2::new(w / 2.0, 14.0 * h) * self.zoom * scale
+                        }
+                    };
+
+                    let badge_center = node_screen_phys + offset_phys;
+
+                    let (label_w_opt, label_h_opt) = buf.size();
+                    let label_w = label_w_opt.unwrap_or(24.0);
+                    let label_h = label_h_opt.unwrap_or(24.0);
+
+                    let scaled_label_w = label_w * self.zoom;
+                    let scaled_label_h = label_h * self.zoom;
+
+                    let left = badge_center.x - scaled_label_w * 0.5;
+                    let top = badge_center.y - scaled_label_h * 0.5;
+                    let right = left + scaled_label_w;
+                    let bottom = top + scaled_label_h;
+
+                    if right < 0.0 || left > vp_w_px || bottom < 0.0 || top > vp_h_px {
+                        continue;
+                    }
+
+                    individual_count_layouts.push(LabelLayout {
+                        buffer_index: list_idx,
+                        left,
+                        top,
+                        scale_factor: self.zoom,
+                        bounds: TextBounds {
+                            left: left as i32,
+                            top: top as i32,
+                            right: right as i32,
+                            bottom: bottom as i32,
+                        },
+                    });
+                }
+            }
+
+            // Node Label Areas
+            if let Some(text_buffers) = self.text_buffers.as_ref() {
+                for layout in node_layouts {
+                    areas.push(TextArea {
+                        buffer: &text_buffers[layout.buffer_index],
+                        left: layout.left,
+                        top: layout.top,
+                        scale: layout.scale_factor,
+                        bounds: layout.bounds,
+                        default_color: Color::rgb(0, 0, 0),
+                        custom_glyphs: &[],
+                    });
+                }
+            }
+
+            // Cardinality Areas
+            if let Some(card_buffers) = self.cardinality_text_buffers.as_ref() {
+                for layout in card_layouts {
+                    areas.push(TextArea {
+                        buffer: &card_buffers[layout.buffer_index].1,
+                        left: layout.left,
+                        top: layout.top,
+                        scale: layout.scale_factor,
+                        bounds: layout.bounds,
+                        default_color: Color::rgb(0, 0, 0),
+                        custom_glyphs: &[],
+                    });
+                }
+            }
+
+            if let Some(count_buffers) = self.individual_count_text_buffers.as_ref() {
+                for layout in individual_count_layouts {
+                    areas.push(TextArea {
+                        buffer: &count_buffers[layout.buffer_index].1,
+                        left: layout.left,
+                        top: layout.top,
+                        scale: layout.scale_factor,
+                        bounds: layout.bounds,
+                        default_color: Color::rgb(150, 150, 150),
+                        custom_glyphs: &[],
+                    });
+                }
             }
         }
-
-        // Cardinality Layouts
-        let mut card_layouts: Vec<LabelLayout> = Vec::new();
-        if let Some(card_buffers) = self.cardinality_text_buffers.as_ref() {
-            for (list_idx, (edge_idx, buf)) in card_buffers.iter().enumerate() {
-                if *edge_idx >= self.edges.len() {
-                    continue;
-                }
-
-                let edge = self.edges[*edge_idx];
-                let center_idx = edge[1];
-                let end_idx = edge[2];
-
-                if edge.iter().any(|i| self.hidden_indices.contains(i)) {
-                    continue;
-                }
-
-                let center_log_world =
-                    Vec2::new(self.positions[center_idx][0], self.positions[center_idx][1]);
-                let end_log_world =
-                    Vec2::new(self.positions[end_idx][0], self.positions[end_idx][1]);
-
-                let dir_world_x = center_log_world.x - end_log_world.x;
-                let dir_world_y = center_log_world.y - end_log_world.y;
-
-                let radius_world: f32 = 50.0;
-                let padding_world = 15.0;
-                let padding_world_rect = 45.0;
-
-                let (offset_world_x, offset_world_y) = match self.node_shapes[end_idx] {
-                    NodeShape::Circle { r } => (
-                        (radius_world + padding_world) * r,
-                        (radius_world + padding_world) * r,
-                    ),
-                    NodeShape::Rectangle { w, h } => {
-                        let half_w_world = (w * 0.9 / 2.0) * radius_world;
-                        let half_h_world = (h * 0.25 / 2.0) * radius_world;
-                        let nx = if dir_world_x.abs() > 1e-6 {
-                            dir_world_x.signum()
-                        } else {
-                            0.0
-                        };
-                        let ny = if dir_world_y.abs() > 1e-6 {
-                            dir_world_y.signum()
-                        } else {
-                            0.0
-                        };
-
-                        let len_sq = dir_world_x.mul_add(dir_world_x, dir_world_y * dir_world_y);
-                        let len_world = len_sq.sqrt().max(1.0);
-                        let nx_world = dir_world_x / len_world;
-                        let ny_world = dir_world_y / len_world;
-
-                        let tx = if nx_world.abs() > 1e-6 {
-                            half_w_world / nx_world.abs()
-                        } else {
-                            f32::INFINITY
-                        };
-                        let ty = if ny_world.abs() > 1e-6 {
-                            half_h_world / ny_world.abs()
-                        } else {
-                            f32::INFINITY
-                        };
-                        let t = tx.min(ty);
-                        let dist = t + padding_world_rect;
-                        (dist, dist)
-                    }
-                };
-
-                let len_sq = dir_world_x.mul_add(dir_world_x, dir_world_y * dir_world_y);
-                let len_world = len_sq.sqrt().max(1.0);
-                let nx_world = dir_world_x / len_world;
-                let ny_world = dir_world_y / len_world;
-
-                let card_world_x = end_log_world.x + nx_world * offset_world_x;
-                let card_world_y = end_log_world.y + ny_world * offset_world_y;
-
-                let card_screen_phys =
-                    self.world_to_screen(Vec2::new(card_world_x, card_world_y)) * scale;
-                let card_x_px = card_screen_phys.x;
-                let card_y_px = card_screen_phys.y;
-
-                let (label_w_opt, label_h_opt) = buf.size();
-                let label_w = label_w_opt.unwrap_or(48.0);
-                let label_h = label_h_opt.unwrap_or(24.0);
-                let scaled_label_w = label_w * self.zoom;
-                let scaled_label_h = label_h * self.zoom;
-
-                let left = card_x_px - scaled_label_w * 0.5;
-                let top = card_y_px - scaled_label_h * 0.5;
-                let right = left + scaled_label_w;
-                let bottom = top + scaled_label_h;
-
-                if right < 0.0 || left > vp_w_px || bottom < 0.0 || top > vp_h_px {
-                    continue;
-                }
-
-                card_layouts.push(LabelLayout {
-                    buffer_index: list_idx,
-                    left,
-                    top,
-                    scale_factor: self.zoom,
-                    bounds: TextBounds {
-                        left: left as i32,
-                        top: top as i32,
-                        right: right as i32,
-                        bottom: bottom as i32,
-                    },
-                });
-            }
-        }
-
-        // Individuals
-        let mut individual_count_layouts: Vec<LabelLayout> = Vec::new();
-
-        if let Some(count_buffers) = self.individual_count_text_buffers.as_ref() {
-            for (list_idx, (node_idx, buf)) in count_buffers.iter().enumerate() {
-                if *node_idx >= self.positions.len()
-                    || matches!(self.elements[*node_idx], ElementType::NoDraw)
-                    || self.hidden_indices.contains(node_idx)
-                {
-                    continue;
-                }
-
-                let node_world =
-                    Vec2::new(self.positions[*node_idx][0], self.positions[*node_idx][1]);
-                let node_screen_phys = self.world_to_screen(node_world) * scale;
-
-                let offset_phys = match self.node_shapes[*node_idx] {
-                    NodeShape::Circle { r } => Vec2::new(r / 2.0, 24.0 * r) * self.zoom * scale,
-                    NodeShape::Rectangle { w, h } => {
-                        Vec2::new(w / 2.0, 14.0 * h) * self.zoom * scale
-                    }
-                };
-
-                let badge_center = node_screen_phys + offset_phys;
-
-                let (label_w_opt, label_h_opt) = buf.size();
-                let label_w = label_w_opt.unwrap_or(24.0);
-                let label_h = label_h_opt.unwrap_or(24.0);
-
-                let scaled_label_w = label_w * self.zoom;
-                let scaled_label_h = label_h * self.zoom;
-
-                let left = badge_center.x - scaled_label_w * 0.5;
-                let top = badge_center.y - scaled_label_h * 0.5;
-                let right = left + scaled_label_w;
-                let bottom = top + scaled_label_h;
-
-                if right < 0.0 || left > vp_w_px || bottom < 0.0 || top > vp_h_px {
-                    continue;
-                }
-
-                individual_count_layouts.push(LabelLayout {
-                    buffer_index: list_idx,
-                    left,
-                    top,
-                    scale_factor: self.zoom,
-                    bounds: TextBounds {
-                        left: left as i32,
-                        top: top as i32,
-                        right: right as i32,
-                        bottom: bottom as i32,
-                    },
-                });
-            }
-        }
-
         // CONSTRUCT TEXT AREAS
-
-        let mut areas: Vec<TextArea> = Vec::new();
 
         // Radial Menu Areas
         if let Some((top_screen, bot_screen, c_top, c_bot)) = menu_layout
@@ -1789,104 +1849,64 @@ impl State {
             });
         }
 
-        // Node Label Areas
-        if let Some(text_buffers) = self.text_buffers.as_ref() {
-            for layout in node_layouts {
-                areas.push(TextArea {
-                    buffer: &text_buffers[layout.buffer_index],
-                    left: layout.left,
-                    top: layout.top,
-                    scale: layout.scale_factor,
-                    bounds: layout.bounds,
-                    default_color: Color::rgb(0, 0, 0),
-                    custom_glyphs: &[],
-                });
-            }
-        }
-
-        // Cardinality Areas
-        if let Some(card_buffers) = self.cardinality_text_buffers.as_ref() {
-            for layout in card_layouts {
-                areas.push(TextArea {
-                    buffer: &card_buffers[layout.buffer_index].1,
-                    left: layout.left,
-                    top: layout.top,
-                    scale: layout.scale_factor,
-                    bounds: layout.bounds,
-                    default_color: Color::rgb(0, 0, 0),
-                    custom_glyphs: &[],
-                });
-            }
-        }
-
-        if let Some(count_buffers) = self.individual_count_text_buffers.as_ref() {
-            for layout in individual_count_layouts {
-                areas.push(TextArea {
-                    buffer: &count_buffers[layout.buffer_index].1,
-                    left: layout.left,
-                    top: layout.top,
-                    scale: layout.scale_factor,
-                    bounds: layout.bounds,
-                    default_color: Color::rgb(150, 150, 150),
-                    custom_glyphs: &[],
-                });
-            }
-        }
-
         // RENDER
 
-        // Prepare glyphon
-        if let (
-            Some(font_system),
-            Some(swash_cache),
-            Some(viewport),
-            Some(atlas),
-            Some(text_renderer),
-        ) = (
-            self.font_system.as_mut(),
-            self.swash_cache.as_mut(),
-            self.viewport.as_mut(),
-            self.atlas.as_mut(),
-            self.text_renderer.as_mut(),
-        ) {
-            #[expect(clippy::cast_sign_loss)]
-            viewport.update(
-                &self.queue,
-                Resolution {
-                    width: vp_w_px as u32,
-                    height: vp_h_px as u32,
-                },
-            );
-            atlas.trim();
-            let n = self.num_instances as f32;
-
-            if let Err(e) = text_renderer.prepare_with_depth(
-                &self.device,
-                &self.queue,
-                font_system,
-                atlas,
-                viewport,
-                areas,
-                swash_cache,
-                |meta: usize| {
-                    let i = meta.min(self.num_instances as usize - 1) as f32;
-
-                    #[expect(clippy::cast_sign_loss, reason = "This is handled in the statement")]
-                    if self.hovered_index >= 0 && meta == self.hovered_index as usize {
-                        0.0
-                    } else if meta > self.num_instances as usize {
-                        0.0001
-                    } else {
-                        (i + 1.0) / (n + 1.0)
-                    }
-                },
+        if self.zoom > HIDE_TEXT_AT_ZOOM {
+            // Prepare glyphon
+            if let (
+                Some(font_system),
+                Some(swash_cache),
+                Some(viewport),
+                Some(atlas),
+                Some(text_renderer),
+            ) = (
+                self.font_system.as_mut(),
+                self.swash_cache.as_mut(),
+                self.viewport.as_mut(),
+                self.atlas.as_mut(),
+                self.text_renderer.as_mut(),
             ) {
-                log::error!("glyphon prepare_with_depth failed: {e:?}");
+                #[expect(clippy::cast_sign_loss)]
+                viewport.update(
+                    &self.queue,
+                    Resolution {
+                        width: vp_w_px as u32,
+                        height: vp_h_px as u32,
+                    },
+                );
+                atlas.trim();
+                let n = self.num_instances as f32;
+
+                if let Err(e) = text_renderer.prepare_with_depth(
+                    &self.device,
+                    &self.queue,
+                    font_system,
+                    atlas,
+                    viewport,
+                    areas,
+                    swash_cache,
+                    |meta: usize| {
+                        let i = meta.min(self.num_instances as usize - 1) as f32;
+
+                        #[expect(
+                            clippy::cast_sign_loss,
+                            reason = "This is handled in the statement"
+                        )]
+                        if self.hovered_index >= 0 && meta == self.hovered_index as usize {
+                            0.0
+                        } else if meta > self.num_instances as usize {
+                            0.0001
+                        } else {
+                            (i + 1.0) / (n + 1.0)
+                        }
+                    },
+                ) {
+                    log::error!("glyphon prepare_with_depth failed: {e:?}");
+                }
             }
         }
-
         // Setup Render Pass
-        let output = self.surface.get_current_texture()?;
+
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -1923,6 +1943,7 @@ impl State {
                 }),
                 occlusion_query_set: None,
                 timestamp_writes: None,
+                multiview_mask: None,
             });
 
             // Edges
@@ -1967,23 +1988,23 @@ impl State {
                 render_pass.draw(0..6, 0..1);
             }
 
-            // Text
-            if let (Some(atlas), Some(viewport), Some(text_renderer)) = (
-                self.atlas.as_mut(),
-                self.viewport.as_ref(),
-                self.text_renderer.as_mut(),
-            ) {
-                #[expect(clippy::unwrap_used)]
-                text_renderer
-                    .render(atlas, viewport, &mut render_pass)
-                    .unwrap();
+            if self.zoom > HIDE_TEXT_AT_ZOOM {
+                // Text
+                if let (Some(atlas), Some(viewport), Some(text_renderer)) = (
+                    self.atlas.as_mut(),
+                    self.viewport.as_ref(),
+                    self.text_renderer.as_mut(),
+                ) {
+                    #[expect(clippy::unwrap_used)]
+                    text_renderer
+                        .render(atlas, viewport, &mut render_pass)
+                        .unwrap();
+                }
             }
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
-
-        Ok(())
+        self.queue.present(output);
     }
 
     pub fn update(&mut self) {
@@ -2318,15 +2339,14 @@ impl State {
                 let mut temp_buffer =
                     glyphon::Buffer::new(font_system, Metrics::new(12.0 * scale, 12.0 * scale));
 
-                temp_buffer.set_text(font_system, &measure_text, &Attrs::new(), Shaping::Advanced);
+                temp_buffer.set_text(&measure_text, &Attrs::new(), Shaping::Advanced, None);
+                temp_buffer.shape_until_scroll(font_system, false);
 
                 // Compute max line width using layout runs
                 let text_width = temp_buffer
                     .layout_runs()
                     .map(|run| run.line_w)
                     .fold(0.0, f32::max);
-
-                temp_buffer.shape_until_scroll(font_system, false);
 
                 let mut capped_width = 44.0 * scale;
                 let mut max_lines = 0;
@@ -2371,10 +2391,10 @@ impl State {
                 }
 
                 // Truncation logic
-                temp_buffer.set_wrap(font_system, glyphon::Wrap::Word);
-                temp_buffer.set_size(font_system, Some(capped_width), None);
+                temp_buffer.set_wrap(glyphon::Wrap::Word);
+                temp_buffer.set_size(Some(capped_width), None);
 
-                temp_buffer.set_text(font_system, label_text, &Attrs::new(), Shaping::Advanced);
+                temp_buffer.set_text(label_text, &Attrs::new(), Shaping::Advanced, None);
                 temp_buffer.shape_until_scroll(font_system, false);
 
                 if line_count(&temp_buffer) > max_lines {
@@ -2397,12 +2417,7 @@ impl State {
 
                         let candidate = format!("{}…", &current_text[..cut]);
 
-                        temp_buffer.set_text(
-                            font_system,
-                            &candidate,
-                            &Attrs::new(),
-                            Shaping::Advanced,
-                        );
+                        temp_buffer.set_text(&candidate, &Attrs::new(), Shaping::Advanced, None);
                         temp_buffer.shape_until_scroll(font_system, false);
 
                         let lines = line_count(&temp_buffer);
@@ -2713,14 +2728,13 @@ impl State {
         let world_pos_before = self.screen_to_world(cursor_pos_screen);
 
         // 2. Calculate new zoom
-        let zoom_sensitivity = 0.025;
         let zoom_factor = if scroll_amount > 0.0 {
-            1.0 + scroll_amount * zoom_sensitivity
+            1.0 + scroll_amount * ZOOM_SENSITIVITY
         } else {
-            1.0 / (-scroll_amount).mul_add(zoom_sensitivity, 1.0)
+            1.0 / (-scroll_amount).mul_add(ZOOM_SENSITIVITY, 1.0)
         };
         self.zoom *= zoom_factor;
-        self.zoom = self.zoom.clamp(0.05, 4.0);
+        self.zoom = self.zoom.clamp(ZOOM_MIN, ZOOM_MAX);
 
         // 3. We want the world_pos_before to stay at cursor_pos_screen.
         //    Find the new pan that makes this true.
