@@ -343,7 +343,9 @@ impl SimulatorBuilder {
                 .create_entity()
                 .with(Position(*node))
                 .with(Velocity::default())
-                .with(Mass(sizes[i]))
+                // If masses are 0.0 or close to it they risk becoming NaN during simulation,
+                // which causes non-termination in the quadtree and exhausts all computer memory.
+                .with(Mass(sizes[i].clamp(1.0, f32::MAX)))
                 .with(NodeForces::default())
                 .with(Shown)
                 .with(NodeType(element_types[i]))
