@@ -51,13 +51,11 @@ impl<'a> System<'a> for QuadTreeConstructor {
     fn run(&mut self, (mut quadtree, entities, positions, masses): Self::SystemData) {
         let mut min = Vec2::INFINITY;
         let mut max = Vec2::NEG_INFINITY;
-        let mut count = 0;
 
         // Join with masses to get node positions (as edges do not have the Mass component)
         for (i, (position, _)) in (&positions, &masses).join().enumerate() {
             min = min.min(position.0);
             max = max.max(position.0);
-            count = i;
         }
 
         let dir = max - min;
@@ -343,7 +341,9 @@ impl SimulatorBuilder {
                 .create_entity()
                 .with(Position(*node))
                 .with(Velocity::default())
-                .with(Mass(sizes[i]))
+                // If masses are 0.0 or close to it they risk becoming NaN during simulation,
+                // which causes non-termination in the quadtree and exhausts all computer memory.
+                .with(Mass(sizes[i].clamp(1.0, f32::MAX)))
                 .with(NodeForces::default())
                 .with(Shown)
                 .with(NodeType(element_types[i]))

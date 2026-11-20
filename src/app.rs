@@ -125,25 +125,7 @@ impl ApplicationHandler<State> for App {
             }
             WindowEvent::RedrawRequested => {
                 state.update();
-                match state.render() {
-                    Ok(()) => {
-                        // Update frame count
-                        // self.dom.fps_counter.update();
-                    }
-                    // Reconfigure the surface if it's lost or outdated
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        let size = state.window.inner_size();
-                        state.resize(size.width, size.height);
-                    }
-                    // The system is out of memory, we should probably quit
-                    Err(wgpu::SurfaceError::OutOfMemory) => {
-                        log::error!("Out of memory while rendering!");
-                        event_loop.exit();
-                    }
-                    Err(e) => {
-                        log::error!("Unable to render {e}");
-                    }
-                }
+                state.render();
             }
             WindowEvent::KeyboardInput {
                 event:
